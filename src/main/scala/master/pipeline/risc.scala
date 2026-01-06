@@ -1,7 +1,12 @@
+package master.pipeline
+
 import chisel3._
 import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
+
+import master.Opcode._
+import master.decInstr
 
 object risc extends App {
   emitVerilog(
@@ -10,31 +15,51 @@ object risc extends App {
   )
 }
 
+
+
 /** Example circuit using the [[MemoryMappedUart]] and the [[StringStreamer]] to send out "Hello World!"
  * @param freq The frequency of the clock
  * @param baud The baud rate of the UART
  * */
 
-class decInstr extends Bundle {
-  val fmt = UInt(3.W)
-  val Load = Bool()
-  val Store = Bool()
-  val Branch = Bool()
-  val jal = Bool()
-  val jalr = Bool()
-  val lui = Bool()
-  val auipc = Bool()
-  val ecall = Bool()
-  val ebreak = Bool()
-  val usesImm = Bool()
-  val imm = UInt(32.W)
-  val fmt = UInt(3.W)
-  val fmt = UInt(3.W)
-  val fmt = UInt(3.W)
 
 
+class Decode extends Module {
+  val io = IO(new Bundle { // need to consider width of inputs
+    val instruction = Input(UInt(32.W))
+    val rd1 = Output(UInt(32.W))
+    val rd2 = Output(UInt(32.W))
+    val decodedInstr = Wire(new decInstr())
+  })
 
+  io.instruction := "h12300093".U(32.W)
+  val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+  val PC = RegInit(0.U(32.W))
+  val opcode = Wire(UInt(7.W))
+  val func3 = Wire(UInt(3.W))
+  val func7 = Wire(UInt(7.W))
+  val rd = Wire(UInt(5.W))
+  val rs1 = Wire(UInt(5.W))
+  val rs2 = Wire(UInt(5.W))
+
+  opcode := io.instruction(6,0)
+  func3 := io.instruction(14,12)
+  func7 := io.instruction(31,25)
+  rd := io.instruction(11,7)
+  rs1 := io.instruction(19,15)
+  rs2 := io.instruction(24,20)
+
+  // defaults
+  io.rd1 := 0.U
+  io.rd2 := 0.U
+
+  switch(io.instruction){
+
+  }
 }
+
+
+
 
 
 
@@ -103,7 +128,7 @@ class risc(freq: Int, baud: Int) extends Module {
   val func7 = Wire(UInt(1.W))
 
   // thinking about adding boolean signals
-  val branch = Wire(UInt(1.W))
+  val wasbranch = Wire(UInt(1.W))
 
 
   registers(0) := 0.U
@@ -112,21 +137,20 @@ class risc(freq: Int, baud: Int) extends Module {
   func7 := instruction(30)
 
   switch(opcode){
-    is("b011_0011".U) { // R
+    is(alu.U) { // R
 
       // switch()
       registers(instruction(11,7)) := registers(instruction(24,20)) + registers(instruction(19,15)) // hardcoded add
     }
-    is("b001_0011".U) {} // I
-    is("b000_0011".U) {} // I
-    is("b010_0011".U) {} // S
-    is("b110_0011".U) {} // B
-    is("b110_1111".U) {} // J
-    is("b110_0111".U) {} // I
-    is("b011_0111".U) {} // U
-    is("b001_0111".U) {} // U
-    is("b111_0011".U) {} // I
-    is("b111_0011".U) {} // I
+    is(aluI.U) {} // I
+    is(load.U) {} // I
+    is(store.U) {} // S
+    is(branch.U) {} // B
+    is(jal.U) {} // J
+    is(jalR.U) {} // I
+    is(lui.U) {} // U
+    is(auiPc.U) {} // U
+    is(env.U) {} // I
   }
   registers(1) := instruction
 

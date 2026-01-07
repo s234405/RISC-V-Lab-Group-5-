@@ -29,14 +29,13 @@ object risc extends App {
 class Decode extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
     val instruction = Input(UInt(32.W))
-    val rd1 = Output(UInt(32.W))
-    val rd2 = Output(UInt(32.W))
+    // val rd1 = Output(UInt(32.W))
+    // val rd2 = Output(UInt(32.W))
     val decodedInstr = Output(Wire(new decInstr()))
   })
 
   io.instruction := "h12300093".U(32.W)
   val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-  val PC = RegInit(0.U(32.W))
   val opcode = Wire(UInt(7.W))
   val func3 = Wire(UInt(3.W))
   val func7 = Wire(UInt(7.W))
@@ -53,9 +52,12 @@ class Decode extends Module {
   rs1 := io.instruction(19,15)
   rs2 := io.instruction(24,20)
 
-  // defaults
-  io.rd1 := 0.U
-  io.rd2 := 0.U
+  io.decodedInstr.op1 := registers(rs1)
+  io.decodedInstr.op2 := registers(rs2)
+
+  io.decodedInstr.rs1 :=rs1
+  io.decodedInstr.rs2 := rs2
+
 
 
   val control = Module(new Control())
@@ -68,6 +70,7 @@ class Decode extends Module {
   aluControl.io.fn7 := func7
   aluControl.io.fmt := io.decodedInstr.fmt
   io.decodedInstr.aluControl := aluControl.io.AluSelect
+
 
 
 }
@@ -115,7 +118,7 @@ class Control extends Module {
   switch(io.opcode){
     is(alu.U) { // R
       io.decodedInstr.fmt := R.id.U
-      io.decodedInstr.rs2 := true.B
+      io.decodedInstr.isRs2 := true.B
     }
     is(aluI.U) { // I
       io.decodedInstr.fmt := I.id.U
@@ -160,7 +163,7 @@ class Control extends Module {
 
     is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
 
-    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)).asSInt }
+    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## !0.U(1.W)).asSInt }
 
     is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
 
@@ -181,16 +184,16 @@ class ALU extends Module {
   io.rd := 0.U
 
   switch(io.fn){
-    is(0.U){ io.rd := io.rs1 + io.rs2 } // ADD
-    is(1.U){ io.rd := io.rs1 - io.rs2 } // SUB
-    is(2.U){ io.rd := io.rs1 ^ io.rs2 } // XOR
-    is(3.U){ io.rd := io.rs1 | io.rs2 } // OR
-    is(4.U){ io.rd := io.rs1 & io.rs2 } // AND
-    is(5.U){ io.rd := io.rs1 << io.rs2 }  // Left shift logical
-    is(6.U){ io.rd := io.rs1 >> io.rs2 } // Right shift logical
-    is(7.U){ io.rd := (io.rs1.asSInt >> io.rs2).asUInt } // Right shift arithmetic hopefully works
-    is(8.U){ io.rd := (io.rs1.asSInt < io.rs2.asSInt).asUInt } // Set less than
-    is(9.U){ io.rd := (io.rs1 < io.rs2).asUInt } // Set less than (U)
+    is(ADD.id.U){ io.rd := io.rs1 + io.rs2 } // ADD
+    is(SUB.id.U){ io.rd := io.rs1 - io.rs2 } // SUB
+    is(XOR.id.U){ io.rd := io.rs1 ^ io.rs2 } // XOR
+    is(OR.id.U){ io.rd := io.rs1 | io.rs2 } // OR
+    is(AND.id.U){ io.rd := io.rs1 & io.rs2 } // AND
+    is(SLL.id.U){ io.rd := io.rs1 << io.rs2 }  // Left shift logical
+    is(SRL.id.U){ io.rd := io.rs1 >> io.rs2 } // Right shift logical
+    is(SRA.id.U){ io.rd := (io.rs1.asSInt >> io.rs2).asUInt } // Right shift arithmetic hopefully works
+    is(SLT.id.U){ io.rd := (io.rs1.asSInt < io.rs2.asSInt).asUInt } // Set less than
+    is(SLTU.id.U){ io.rd := (io.rs1 < io.rs2).asUInt } // Set less than (U)
   }
 }
 

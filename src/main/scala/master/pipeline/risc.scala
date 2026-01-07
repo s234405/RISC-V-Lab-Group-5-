@@ -309,10 +309,10 @@ class risc() extends Module {
   val decodedinst = decode.io.decodedInstr
 
   val ALU = Module(new ALU)
-  ALU.io.rs1 := decodedinst.op1
-  ALU.io.rs2 := decodedinst.op2
-  ALU.io.fn := decodedinst.fmt
-  val result = ALU.io.rd
+  ALU.io.op1 := decodedinst.op1
+  ALU.io.op2 := decodedinst.op2
+  ALU.io.aluControl := decodedinst.aluControl
+  val result = ALU.io.result
 
 
 }

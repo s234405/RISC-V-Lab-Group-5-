@@ -70,8 +70,6 @@ class Decode extends Module {
   io.decodedInstr.aluControl := aluControl.io.AluSelect
 
 
-
-
 }
 
 class AluControl extends Module {

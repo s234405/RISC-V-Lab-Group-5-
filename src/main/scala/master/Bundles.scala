@@ -20,4 +20,5 @@ class decInstr extends Bundle {
   val isImm = Bool()
   val rs2 = Bool()
   val imm = SInt(32.W)
+  val aluControl = UInt(4.W)
 }

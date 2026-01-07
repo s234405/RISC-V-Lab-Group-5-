@@ -4,10 +4,11 @@ import chisel3._
 import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
-
 import master.Opcode._
 import master.FMT._
-import master.decInstr
+import master.{FMT, decInstr}
+import master.Fn3Values._
+import master.AluEnum._
 
 object risc extends App {
   emitVerilog(
@@ -56,97 +57,120 @@ class Decode extends Module {
   io.rd1 := 0.U
   io.rd2 := 0.U
 
-  switch(opcode){
-    is(alu.U) { // R
-      io.decodedInstr.fmt := R.U
-      io.decodedInstr.rs2 := true.B
-    }
-    is(aluI.U) { // I
-      io.decodedInstr.fmt := I.U
-      io.decodedInstr.isImm := true.B
 
-    }
-    is(load.U) {  // I
-      io.decodedInstr.fmt := I.U
-      io.decodedInstr.isLoad := true.B
-    }
-    is(store.U) { // S
-      io.decodedInstr.fmt := S.U
-      io.decodedInstr.isStore := true.B
-    } 
-    is(branch.U) { // B
-      io.decodedInstr.fmt := B.U
-      io.decodedInstr.isBranch := true.B
-    }
-    is(jal.U) { // J
-      io.decodedInstr.fmt := J.U
-      io.decodedInstr.isJal := true.B
-    }
-    is(jalR.U) { // I
-      io.decodedInstr.fmt := I.U
-      io.decodedInstr.isJalr := true.B
-    }
-    is(lui.U) { // U
-      io.decodedInstr.fmt := U.U
-      io.decodedInstr.isLui := true.B
-    }
-    is(auiPc.U) { // U
-      io.decodedInstr.fmt := U.U
-      io.decodedInstr.isAuipc := true.B
-    }
-    is(env.U) { // I
-      io.decodedInstr.fmt := I.U
-      io.decodedInstr.isEnv := true.B     }
-  }
+  val control = Module(new Control())
+  control.io.instruction := io.instruction
+  control.io.opcode := opcode
+  io.decodedInstr := control.io.decodedInstr
 
-  switch(io.decodedInstr.fmt){
-    is(I.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)).asSInt }
+  val aluControl = Module(new AluControl())
+  aluControl.io.fn3 := func3
+  aluControl.io.fn7 := func7
+  aluControl.io.fmt := io.decodedInstr.fmt
+  io.decodedInstr.aluControl := aluControl.io.AluSelect
 
-    is(S.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
 
-    is(B.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)).asSInt }
-
-    is(U.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
-
-    is(J.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
-  }
 
 
 }
-
-
-
-
-
-
 
 class AluControl extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
     val fn3 = Input(UInt(3.W))
     val fn7 = Input(UInt(7.W))
-    val AluOp = Input(UInt(2.W))
-    val AluSelect = Output(UInt(32.W))
+    val fmt = Input(UInt(3.W))
+    val AluSelect = Output(UInt(4.W))
   })
 
+  // default
   io.AluSelect := 0.U
 
-  switch(io.AluOp){
-    is(0.U){ io.AluSelect := io.fn3 } // ADD
+  switch(io.fn3){
+    is(ADD3.U) {
+      when(((io.fn7 === 0x20.U) && (io.fmt === R.id.U))) { io.AluSelect := SUB.id.U }       // beware
+        .otherwise( io.AluSelect := ADD.id.U )
+    }
+    is(XOR3.U) { io.AluSelect := XOR.id.U }
+    is(OR3.U) { io.AluSelect := OR.id.U }
+    is(AND3.U) { io.AluSelect := AND.id.U }
+    is(SLL3.U) { io.AluSelect := SLL.id.U }
+    is(SR3.U) {
+      when(io.fn7 === 0x20.U) { io.AluSelect := SRA.id.U }
+        .otherwise( io.AluSelect := SRL.id.U )
+    }
+    is(SLT3.U) { io.AluSelect := SLT.id.U }
+    is(SLTU3.U) { io.AluSelect := SLTU.id.U }
 
   }
 }
+
 
 class Control extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
+    val instruction = Input(UInt(7.W))
     val opcode = Input(UInt(7.W))
-    val controlOut = Output(UInt(32.W))
+    val decodedInstr = Output(Wire(new decInstr()))
   })
 
-  io.controlOut := 0.U
+  io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+
   switch(io.opcode){
-    is(0.U){ io.controlOut := io.opcode } // ADD
+    is(alu.U) { // R
+      io.decodedInstr.fmt := R.id.U
+      io.decodedInstr.rs2 := true.B
+    }
+    is(aluI.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isImm := true.B
+
+    }
+    is(load.U) {  // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isLoad := true.B
+    }
+    is(store.U) { // S
+      io.decodedInstr.fmt := S.id.U
+      io.decodedInstr.isStore := true.B
+    }
+    is(branch.U) { // B
+      io.decodedInstr.fmt := B.id.U
+      io.decodedInstr.isBranch := true.B
+    }
+    is(jal.U) { // J
+      io.decodedInstr.fmt := J.id.U
+      io.decodedInstr.isJal := true.B
+    }
+    is(jalR.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isJalr := true.B
+    }
+    is(lui.U) { // U
+      io.decodedInstr.fmt := U.id.U
+      io.decodedInstr.isLui := true.B
+    }
+    is(auiPc.U) { // U
+      io.decodedInstr.fmt := U.id.U
+      io.decodedInstr.isAuipc := true.B
+    }
+    is(env.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isEnv := true.B     }
   }
+
+  switch(io.decodedInstr.fmt){
+    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)).asSInt }
+
+    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
+
+    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)).asSInt }
+
+    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
+
+    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
+  }
+
 }
+
 
 class ALU extends Module {
   val io = IO(new Bundle { // need to consider width of inputs

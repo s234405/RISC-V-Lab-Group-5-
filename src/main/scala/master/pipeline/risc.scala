@@ -12,19 +12,10 @@ import master.AluEnum._
 
 object risc extends App {
   emitVerilog(
-    new risc(50000000, 9600),
+    new risc(),
     Array("--target-dir", "generated")
   )
 }
-
-
-
-/** Example circuit using the [[MemoryMappedUart]] and the [[StringStreamer]] to send out "Hello World!"
- * @param freq The frequency of the clock
- * @param baud The baud rate of the UART
- * */
-
-
 
 class Decode extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
@@ -34,14 +25,16 @@ class Decode extends Module {
     val decodedInstr = Output(Wire(new decInstr()))
   })
 
-  io.instruction := "h12300093".U(32.W)
-  val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
   val opcode = Wire(UInt(7.W))
   val func3 = Wire(UInt(3.W))
   val func7 = Wire(UInt(7.W))
   val rd = Wire(UInt(5.W))
   val rs1 = Wire(UInt(5.W))
   val rs2 = Wire(UInt(5.W))
+
+  val registers = Module(new registerfile)
+  registers.io.rs1_sel := rs1
+  registers.io.rs2_sel := rs2
 
   io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
   opcode := io.instruction(6,0)
@@ -52,8 +45,8 @@ class Decode extends Module {
   rs1 := io.instruction(19,15)
   rs2 := io.instruction(24,20)
 
-  io.decodedInstr.op1 := registers(rs1)
-  io.decodedInstr.op2 := registers(rs2)
+  io.decodedInstr.op1 := registers.io.rs1
+  io.decodedInstr.op2 := registers.io.rs2
 
   io.decodedInstr.rs1 :=rs1
   io.decodedInstr.rs2 := rs2
@@ -301,55 +294,27 @@ class instructionFetch extends Module {
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 }
-class risc(freq: Int, baud: Int) extends Module {
+
+
+
+class risc() extends Module {
   val io = IO(new Bundle {
-    val uart = UartPins()
+
   })
-  val instruction = "h12300093".U(32.W)
-  val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-  val PC = RegInit(0.U(32.W))
-  val opcode = Wire(UInt(7.W))
-  val func3 = Wire(UInt(3.W))
-  val func7 = Wire(UInt(1.W))
+  val instFetch = Module(new instructionFetch)
+  val inst = Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U)
 
-  // thinking about adding boolean signals
-  val wasbranch = Wire(UInt(1.W))
+  val decode = Module(new Decode)
+  decode.io.instruction := inst
+  val decodedinst = decode.io.decodedInstr
+
+  val ALU = Module(new ALU)
+  ALU.io.rs1 := decodedinst.op1
+  ALU.io.rs2 := decodedinst.op2
+  ALU.io.fn := decodedinst.fmt
+  val result = ALU.io.rd
 
 
-  registers(0) := 0.U
-  opcode := instruction(6,0)
-  func3 := instruction(14,12)
-  func7 := instruction(30)
-
-  switch(opcode){
-    is(alu.U) { // R
-
-      // switch()
-      registers(instruction(11,7)) := registers(instruction(24,20)) + registers(instruction(19,15)) // hardcoded add
-    }
-    is(aluI.U) {} // I
-    is(load.U) {} // I
-    is(store.U) {} // S
-    is(branch.U) {} // B
-    is(jal.U) {} // J
-    is(jalR.U) {} // I
-    is(lui.U) {} // U
-    is(auiPc.U) {} // U
-    is(env.U) {} // I
-  }
-  registers(1) := instruction
-
-  val stringStreamer = StringStreamer("Hello World!\n")
-
-  val mmUart = MemoryMappedUart(
-    freq,
-    baud,
-    txBufferDepth = 8,
-    rxBufferDepth = 8
-  )
-
-  stringStreamer.io.port <> mmUart.io.port
-  io.uart <> mmUart.io.pins
 }
 
 

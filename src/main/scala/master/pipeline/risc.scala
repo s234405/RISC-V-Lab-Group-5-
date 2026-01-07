@@ -170,6 +170,7 @@ class Control extends Module {
   })
 
   // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+  /*
   io.decodedInstr := io.decodedInstrIn
 
   switch(io.opcode){
@@ -226,6 +227,7 @@ class Control extends Module {
 
     is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
   }
+  */
 
 }
 
@@ -324,7 +326,8 @@ class instructionMem() extends Module {
   val addrReg = Reg(UInt(32.W))
   addrReg := io.address
 
-  val code = Array(0x12300093,0x12300093, 0x12300093, 0x12300093)
+  //val code = Array(0x12300093,0x12300093, 0x12300093, 0x12300093) addi 123
+  val code = Array(0x11100093, 0x22200113, 0x00000013, 0x00000013, 0x00000013, 0x002081b3)
 
   val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
   io.inst := instructions(addrReg(31, 2))
@@ -342,8 +345,9 @@ class PcCounter() extends Module {
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
   val PcNext = WireDefault(Mux(io.branchEna,io.branchAddr,PcReg+4.U))
-  PcReg := PcNext + PcReg
+  PcReg := PcNext
   io.PC := PcNext
+  printf("Current value of PC is: %d\n", PcNext)
 }
 
 class instructionFetch extends Module {
@@ -388,14 +392,25 @@ class risc() extends Module {
   decode.io.op2 := registerFile.io.rs2
 
   registerFile.io.rs1_sel := decode.io.decodedInstr.rs1
-  registerFile.io.rs2_sel := decode.io.decodedInstr.rs1
-
-  registerFile.io.wb_enable := decode.io.decodedInstr.isImm
-  registerFile.io.wb_address := decode.io.decodedInstr.rd
-
+  registerFile.io.rs2_sel := decode.io.decodedInstr.rs2
 
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
+
+  registerFile.io.wb_enable := deExInstReg.fmt === R.id.U | deExInstReg.isImm
+  registerFile.io.wb_address := deExInstReg.rd
+
+
+  // datamemory
+  val DM = Module(new DataMemory)
+  DM.io.wrEna := decodedinst.isStore
+  DM.io.wrAddr := decodedinst.op1 + decodedinst.imm.asUInt
+  DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
+  DM.io.wrMask := "b1111".U
+  DM.io.wrData := decodedinst.op2
+
+
+
 
   val ALU = Module(new ALU)
   ALU.io.op1 := deExInstReg.op1
@@ -405,8 +420,10 @@ class risc() extends Module {
   registerFile.io.wb_data := ALU.io.result
 
   //debug
-  io.reg := ALU.io.result
+  io.reg := registerFile.io.registers(3)
   printf("Current value of reg1 is: %d\n", registerFile.io.registers(1))
+  printf("Current value of reg2 is: %d\n", registerFile.io.registers(2))
+  printf("Current value of reg3 is: %d\n", registerFile.io.registers(3))
   /*
   printf("Current value of inst: %d\n", inst)
   printf("Current value of alu control: %d\n", decodedinst.aluControl)

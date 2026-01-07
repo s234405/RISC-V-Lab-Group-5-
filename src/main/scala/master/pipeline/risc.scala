@@ -229,22 +229,23 @@ class DataMemory() extends Module {
 
 
   val index = log2Up(4096/4)
-  io.rdData := mem(3).read(io.rdAddr(index+2, 2)) ##
-    mem(2).read(io.rdAddr(index+2, 2)) ##
-    mem(1).read(io.rdAddr(index+2, 2)) ##
-    mem(0).read(io.rdAddr(index+2, 2))
+  val addrOffset = 2
+  io.rdData := mem(3).read(io.rdAddr(index+addrOffset, addrOffset)) ##
+    mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
+    mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
+    mem(0).read(io.rdAddr(index+addrOffset, addrOffset))
 
   when(io.wrEna && io.wrMask(0)){
-    mem(0).write(io.wrAddr(index+2),io.wrData(7, 0))
+    mem(0).write(io.wrAddr(index+addrOffset),io.wrData(7, 0))
   }
   when(io.wrEna && io.wrMask(1)){
-    mem(1).write(io.wrAddr(index+2),io.wrData(15, 8))
+    mem(1).write(io.wrAddr(index+addrOffset),io.wrData(15, 8))
   }
   when(io.wrEna && io.wrMask(2)){
-    mem(2).write(io.wrAddr(index+2),io.wrData(23, 16))
+    mem(2).write(io.wrAddr(index+addrOffset),io.wrData(23, 16))
   }
   when(io.wrEna && io.wrMask(3)){
-    mem(3).write(io.wrAddr(index+2),io.wrData(31, 24))
+    mem(3).write(io.wrAddr(index+addrOffset),io.wrData(31, 24))
   }
 }
 class instructionMem() extends Module {

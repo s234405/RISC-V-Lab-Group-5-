@@ -12,7 +12,7 @@ import master.AluEnum._
 
 object risc extends App {
   emitVerilog(
-    new risc(),
+    new risc(Array(0x12300093,0x12300093, 0x12300093, 0x12300093)),
     Array("--target-dir", "generated")
   )
 }
@@ -315,8 +315,15 @@ class DataMemory() extends Module {
   when(io.wrEna && io.wrMask(3)){
     mem(3).write(io.wrAddr(index+addrOffset),io.wrData(31, 24))
   }
+  /*
+  printf("New Clock\n")
+  printf("Current value of wrEna: %d\n", io.wrEna)
+  printf("Current value of wrData: %d\n", io.wrData)
+  printf("Current value of mem0: %d\n", mem(0).read(0.U(index+addrOffset, addrOffset)))
+
+   */
 }
-class instructionMem() extends Module {
+class instructionMem(code: Array[Int]) extends Module {
   val io = IO(new Bundle{
     val address = Input(UInt(32.W))
     val ack = Output(Bool())
@@ -327,7 +334,8 @@ class instructionMem() extends Module {
   addrReg := io.address
 
   //val code = Array(0x12300093,0x12300093, 0x12300093, 0x12300093) addi 123
-  val code = Array(0x11100093, 0x22200113, 0x00000013, 0x00000013, 0x00000013, 0x002081b3)
+  //val code = Array(0x11100093, 0x22200113, 0x00000013, 0x00000013, 0x00000013, 002080b3) //add
+  //val code = Array(0x00100093, 0x00000013, 0x00000013, 0x00000013, 0x00102023) //sw
 
   val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
   io.inst := instructions(addrReg(31, 2))
@@ -347,17 +355,17 @@ class PcCounter() extends Module {
   val PcNext = WireDefault(Mux(io.branchEna,io.branchAddr,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
-  printf("Current value of PC is: %d\n", PcNext)
+
 }
 
-class instructionFetch extends Module {
+class instructionFetch(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
   })
-  val instMem = Module(new instructionMem)
+  val instMem = Module(new instructionMem(code))
   val PC = Module(new PcCounter)
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
@@ -368,11 +376,11 @@ class instructionFetch extends Module {
 
 
 
-class risc() extends Module {
+class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val reg = Output(UInt(32.W))
   })
-  val instFetch = Module(new instructionFetch)
+  val instFetch = Module(new instructionFetch(code))
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
   val instReg = RegInit(0x00000013.U)
   instReg := inst
@@ -420,10 +428,10 @@ class risc() extends Module {
   registerFile.io.wb_data := ALU.io.result
 
   //debug
-  io.reg := registerFile.io.registers(3)
-  printf("Current value of reg1 is: %d\n", registerFile.io.registers(1))
-  printf("Current value of reg2 is: %d\n", registerFile.io.registers(2))
-  printf("Current value of reg3 is: %d\n", registerFile.io.registers(3))
+  io.reg := registerFile.io.registers(1)
+
+  printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
+  printf("Current value of Reg1: %d\n", registerFile.io.registers(2))
   /*
   printf("Current value of inst: %d\n", inst)
   printf("Current value of alu control: %d\n", decodedinst.aluControl)
@@ -433,6 +441,8 @@ class risc() extends Module {
   printf("Current value of op2: %d\n", decodedinst.op2)
 
    */
+
+
 
 
 

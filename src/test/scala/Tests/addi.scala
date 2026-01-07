@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class addi extends AnyFlatSpec with ChiselScalatestTester {
   "addi" should "pass" in {
 
-    test(new risc()) { dut =>
+    test(new risc(Array(0x12300093,0x12300093, 0x12300093, 0x12300093))) { dut =>
       dut.clock.step()
       dut.clock.step()
       dut.clock.step()

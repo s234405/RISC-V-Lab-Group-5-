@@ -22,7 +22,7 @@ class Decode extends Module {
     val instruction = Input(UInt(32.W))
     // val rd1 = Output(UInt(32.W))
     // val rd2 = Output(UInt(32.W))
-    val decodedInstr = Output(Wire(new decInstr()))
+    val decodedInstr = Output(new decInstr())
   })
 
   val opcode = Wire(UInt(7.W))
@@ -36,7 +36,8 @@ class Decode extends Module {
   registers.io.rs1_sel := rs1
   registers.io.rs2_sel := rs2
 
-  io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+  // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+  io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
   opcode := io.instruction(6,0)
 
   func3 := io.instruction(14,12)
@@ -101,12 +102,13 @@ class AluControl extends Module {
 
 class Control extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
-    val instruction = Input(UInt(7.W))
+    val instruction = Input(UInt(32.W))
     val opcode = Input(UInt(7.W))
-    val decodedInstr = Output(Wire(new decInstr()))
+    val decodedInstr = Output(new decInstr())
   })
 
-  io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+  // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
+  io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
 
   switch(io.opcode){
     is(alu.U) { // R
@@ -182,9 +184,9 @@ class ALU extends Module {
     is(XOR.id.U){ io.result := io.op1 ^ io.op2 } // XOR
     is(OR.id.U){ io.result := io.op1 | io.op2 } // OR
     is(AND.id.U){ io.result := io.op1 & io.op2 } // AND
-    is(SLL.id.U){ io.result := io.op1 << io.op2 }  // Left shift logical
-    is(SRL.id.U){ io.result := io.op1 >> io.op2 } // Right shift logical
-    is(SRA.id.U){ io.result := (io.op1.asSInt >> io.op2).asUInt } // Right shift arithmetic hopefully works
+    is(SLL.id.U){ io.result := io.op1 << io.op2(4,0) }  // Left shift logical
+    is(SRL.id.U){ io.result := io.op1 >> io.op2(4,0) } // Right shift logical
+    is(SRA.id.U){ io.result := (io.op1.asSInt >> io.op2(4,0)).asUInt } // Right shift arithmetic hopefully works
     is(SLT.id.U){ io.result := (io.op1.asSInt < io.op2.asSInt).asUInt } // Set less than
     is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }

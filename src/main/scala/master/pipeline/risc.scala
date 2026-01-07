@@ -35,6 +35,9 @@ class Decode extends Module {
   val registers = Module(new registerfile)
   registers.io.rs1_sel := rs1
   registers.io.rs2_sel := rs2
+  registers.io.wb_enable := false.B
+  registers.io.wb_address := 0.U
+  registers.io.wb_data := 0.U
 
   // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
   io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
@@ -306,6 +309,9 @@ class risc() extends Module {
   })
   val instFetch = Module(new instructionFetch)
   val inst = Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U)
+  instFetch.io.branchEna := false.B
+  instFetch.io.branchAddr := 0.U
+
 
   val decode = Module(new Decode)
   decode.io.instruction := inst

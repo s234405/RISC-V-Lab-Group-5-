@@ -46,18 +46,16 @@ class Decode extends Module {
   rs1 := io.instruction(19,15)
   rs2 := io.instruction(24,20)
 
-  io.decodedInstr.op1 := io.op1
-  io.decodedInstr.op2 := io.op2
 
-  io.decodedInstr.rs1 :=rs1
+
+  io.decodedInstr.op1 := io.op1
+  io.decodedInstr.op2 := Mux(io.decodedInstr.isImm,io.decodedInstr.imm.asUInt,io.op2)
+  io.decodedInstr.rd := rd
+  io.decodedInstr.rs1 := rs1
   io.decodedInstr.rs2 := rs2
 
 
 
-  val control = Module(new Control())
-  control.io.instruction := io.instruction
-  control.io.opcode := opcode
-  io.decodedInstr := control.io.decodedInstr
 
   val aluControl = Module(new AluControl())
   aluControl.io.fn3 := func3
@@ -65,7 +63,70 @@ class Decode extends Module {
   aluControl.io.fmt := io.decodedInstr.fmt
   io.decodedInstr.aluControl := aluControl.io.AluSelect
 
+  //control
+  /*
+  val control = Module(new Control())
+  control.io.instruction := io.instruction
+  control.io.opcode := opcode
+  io.decodedInstr := control.io.decodedInstr
+  control.io.decodedInstrIn := io.decodedInstr
 
+   */
+
+  switch(opcode){
+    is(alu.U) { // R
+      io.decodedInstr.fmt := R.id.U
+      io.decodedInstr.isRs2 := true.B
+    }
+    is(aluI.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isImm := true.B
+
+    }
+    is(load.U) {  // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isLoad := true.B
+    }
+    is(store.U) { // S
+      io.decodedInstr.fmt := S.id.U
+      io.decodedInstr.isStore := true.B
+    }
+    is(branch.U) { // B
+      io.decodedInstr.fmt := B.id.U
+      io.decodedInstr.isBranch := true.B
+    }
+    is(jal.U) { // J
+      io.decodedInstr.fmt := J.id.U
+      io.decodedInstr.isJal := true.B
+    }
+    is(jalR.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isJalr := true.B
+    }
+    is(lui.U) { // U
+      io.decodedInstr.fmt := U.id.U
+      io.decodedInstr.isLui := true.B
+    }
+    is(auiPc.U) { // U
+      io.decodedInstr.fmt := U.id.U
+      io.decodedInstr.isAuipc := true.B
+    }
+    is(env.U) { // I
+      io.decodedInstr.fmt := I.id.U
+      io.decodedInstr.isEnv := true.B     }
+  }
+
+  switch(io.decodedInstr.fmt){
+    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)).asSInt }
+
+    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
+
+    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## !0.U(1.W)).asSInt }
+
+    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
+
+    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
+  }
 
 }
 
@@ -104,11 +165,12 @@ class Control extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
     val instruction = Input(UInt(32.W))
     val opcode = Input(UInt(7.W))
+    val decodedInstrIn = Output(new decInstr())
     val decodedInstr = Output(new decInstr())
   })
 
   // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
-  io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
+  io.decodedInstr := io.decodedInstrIn
 
   switch(io.opcode){
     is(alu.U) { // R
@@ -201,9 +263,10 @@ class registerfile() extends Module {
     val wb_data = Input(UInt(32.W))
     val rs1 = Output(UInt(32.W))
     val rs2 = Output(UInt(32.W))
+    val registers = Output(Vec(32, UInt(32.W)))
   })
   val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-
+  io.registers := registers
   //read logic
   io.rs1 := registers(io.rs1_sel)
   io.rs2 := registers(io.rs2_sel)
@@ -223,15 +286,16 @@ class DataMemory() extends Module {
     val wrEna = Input(Bool ())
     val wrMask = Input(UInt (4.W))
   })
-  val mem = Array(
-    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst))
-
-
-  val index = log2Up(4096/4)
+  val size = 4096
+  val index = log2Up(size/4)
   val addrOffset = 2
+
+  val mem = Array(
+    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst))
+
   io.rdData := mem(3).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
@@ -260,7 +324,7 @@ class instructionMem() extends Module {
   val addrReg = Reg(UInt(32.W))
   addrReg := io.address
 
-  val code = Array(0x12300093,0x12300093)
+  val code = Array(0x12300093,0x12300093, 0x12300093, 0x12300093)
 
   val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
   io.inst := instructions(addrReg(31, 2))
@@ -302,10 +366,12 @@ class instructionFetch extends Module {
 
 class risc() extends Module {
   val io = IO(new Bundle {
-
+    val reg = Output(UInt(32.W))
   })
   val instFetch = Module(new instructionFetch)
-  val inst = Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U)
+  val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
+  val instReg = RegInit(0x00000013.U)
+  instReg := inst
   instFetch.io.branchEna := false.B
   instFetch.io.branchAddr := 0.U
 
@@ -313,23 +379,45 @@ class risc() extends Module {
   val decode = Module(new Decode)
   val registerFile = Module(new registerfile)
 
-  decode.io.instruction := inst
+  decode.io.instruction := instReg
   val decodedinst = decode.io.decodedInstr
+
+
 
   decode.io.op1 := registerFile.io.rs1
   decode.io.op2 := registerFile.io.rs2
 
   registerFile.io.rs1_sel := decode.io.decodedInstr.rs1
   registerFile.io.rs2_sel := decode.io.decodedInstr.rs1
-  registerFile.io.wb_enable := false.B
-  registerFile.io.wb_address := 0.U
-  registerFile.io.wb_data := 0.U
+
+  registerFile.io.wb_enable := decode.io.decodedInstr.isImm
+  registerFile.io.wb_address := decode.io.decodedInstr.rd
+
+
+  val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
+  deExInstReg := decode.io.decodedInstr
 
   val ALU = Module(new ALU)
-  ALU.io.op1 := decodedinst.op1
-  ALU.io.op2 := decodedinst.op2
-  ALU.io.aluControl := decodedinst.aluControl
-  val result = ALU.io.result
+  ALU.io.op1 := deExInstReg.op1
+  ALU.io.op2 := deExInstReg.op2
+  ALU.io.aluControl := deExInstReg.aluControl
+
+  registerFile.io.wb_data := ALU.io.result
+
+  //debug
+  io.reg := ALU.io.result
+  printf("Current value of reg1 is: %d\n", registerFile.io.registers(1))
+  /*
+  printf("Current value of inst: %d\n", inst)
+  printf("Current value of alu control: %d\n", decodedinst.aluControl)
+  printf("Current value of alu result: %d\n", ALU.io.result)
+  printf("Current value of isimm: %d\n", decodedinst.isImm)
+  printf("Current value of op1: %d\n", decodedinst.op1)
+  printf("Current value of op2: %d\n", decodedinst.op2)
+
+   */
+
+
 
 
 }

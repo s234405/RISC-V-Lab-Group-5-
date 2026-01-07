@@ -194,7 +194,110 @@ class ALU extends Module {
   }
 }
 
+class registerfile() extends Module {
+  val io = IO(new Bundle {
+    val rs1_sel = Input(UInt(5.W))
+    val rs2_sel = Input(UInt(5.W))
+    val wb_enable = Input(Bool())
+    val wb_address = Input(UInt(5.W))
+    val wb_data = Input(UInt(32.W))
+    val rs1 = Output(UInt(32.W))
+    val rs2 = Output(UInt(32.W))
+  })
+  val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
 
+  //read logic
+  io.rs1 := registers(io.rs1_sel)
+  io.rs2 := registers(io.rs2_sel)
+
+  // write logic
+  when(io.wb_enable && io.wb_address =/= 0.U){
+    registers(io.wb_address) := io.wb_data
+  }
+}
+
+class DataMemory() extends Module {
+  val io = IO(new Bundle {
+    val rdAddr = Input(UInt (32.W))
+    val rdData = Output(UInt (32.W))
+    val wrAddr = Input(UInt (32.W))
+    val wrData = Input(UInt (32.W))
+    val wrEna = Input(Bool ())
+    val wrMask = Input(UInt (4.W))
+  })
+  val mem = Array(
+    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst),
+    SyncReadMem(4096/4, UInt(8.W), SyncReadMem.WriteFirst))
+
+
+  val index = log2Up(4096/4)
+  io.rdData := mem(3).read(io.rdAddr(index+2, 2)) ##
+    mem(2).read(io.rdAddr(index+2, 2)) ##
+    mem(1).read(io.rdAddr(index+2, 2)) ##
+    mem(0).read(io.rdAddr(index+2, 2))
+
+  when(io.wrEna && io.wrMask(0)){
+    mem(0).write(io.wrAddr(index+2),io.wrData(7, 0))
+  }
+  when(io.wrEna && io.wrMask(1)){
+    mem(1).write(io.wrAddr(index+2),io.wrData(15, 8))
+  }
+  when(io.wrEna && io.wrMask(2)){
+    mem(2).write(io.wrAddr(index+2),io.wrData(23, 16))
+  }
+  when(io.wrEna && io.wrMask(3)){
+    mem(3).write(io.wrAddr(index+2),io.wrData(31, 24))
+  }
+}
+class instructionMem() extends Module {
+  val io = IO(new Bundle{
+    val address = Input(UInt(32.W))
+    val ack = Output(Bool())
+    val inst = Output(UInt(32.W))
+  })
+
+  val addrReg = Reg(UInt(32.W))
+  addrReg := io.address
+
+  val code = Array(0x12300093,0x12300093)
+
+  val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
+  io.inst := instructions(addrReg(31, 2))
+
+  // first instruction shall not be executed (random address register)
+  val firstReg = RegInit(true.B)
+  firstReg := false.B
+  io.ack := !(firstReg || false.B) // add toggle
+}
+class PcCounter() extends Module {
+  val io = IO(new Bundle {
+    val branchEna = Input(Bool())
+    val branchAddr = Input(UInt (32.W))
+    val PC = Output(UInt(32.W))
+  })
+  val PcReg = RegInit(-4.S(32.W).asUInt)
+  val PcNext = WireDefault(Mux(io.branchEna,io.branchAddr,PcReg+4.U))
+  PcReg := PcNext + PcReg
+  io.PC := PcNext
+}
+
+class instructionFetch extends Module {
+  val io = IO(new Bundle {
+    val branchEna = Input(Bool())
+    val branchAddr = Input(UInt (32.W))
+    val inst = Output(UInt(32.W))
+    val ack = Output(Bool())
+  })
+  val instMem = Module(new instructionMem)
+  val PC = Module(new PcCounter)
+  PC.io.branchEna := io.branchEna
+  PC.io.branchAddr := io.branchAddr
+  instMem.io.address := PC.io.PC
+  io.inst := instMem.io.inst
+  io.ack := instMem.io.ack
+}
 class risc(freq: Int, baud: Int) extends Module {
   val io = IO(new Bundle {
     val uart = UartPins()

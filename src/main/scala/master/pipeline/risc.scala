@@ -20,6 +20,8 @@ object risc extends App {
 class Decode extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
     val instruction = Input(UInt(32.W))
+    val op1 = Input(UInt(32.W))
+    val op2 = Input(UInt(32.W))
     // val rd1 = Output(UInt(32.W))
     // val rd2 = Output(UInt(32.W))
     val decodedInstr = Output(new decInstr())
@@ -32,12 +34,7 @@ class Decode extends Module {
   val rs1 = Wire(UInt(5.W))
   val rs2 = Wire(UInt(5.W))
 
-  val registers = Module(new registerfile)
-  registers.io.rs1_sel := rs1
-  registers.io.rs2_sel := rs2
-  registers.io.wb_enable := false.B
-  registers.io.wb_address := 0.U
-  registers.io.wb_data := 0.U
+
 
   // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
   io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
@@ -49,8 +46,8 @@ class Decode extends Module {
   rs1 := io.instruction(19,15)
   rs2 := io.instruction(24,20)
 
-  io.decodedInstr.op1 := registers.io.rs1
-  io.decodedInstr.op2 := registers.io.rs2
+  io.decodedInstr.op1 := io.op1
+  io.decodedInstr.op2 := io.op2
 
   io.decodedInstr.rs1 :=rs1
   io.decodedInstr.rs2 := rs2
@@ -314,8 +311,19 @@ class risc() extends Module {
 
 
   val decode = Module(new Decode)
+  val registerFile = Module(new registerfile)
+
   decode.io.instruction := inst
   val decodedinst = decode.io.decodedInstr
+
+  decode.io.op1 := registerFile.io.rs1
+  decode.io.op2 := registerFile.io.rs2
+
+  registerFile.io.rs1_sel := decode.io.decodedInstr.rs1
+  registerFile.io.rs2_sel := decode.io.decodedInstr.rs1
+  registerFile.io.wb_enable := false.B
+  registerFile.io.wb_address := 0.U
+  registerFile.io.wb_data := 0.U
 
   val ALU = Module(new ALU)
   ALU.io.op1 := decodedinst.op1

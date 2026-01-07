@@ -405,7 +405,7 @@ class risc(code: Array[Int]) extends Module {
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
-  registerFile.io.wb_enable := deExInstReg.fmt === R.id.U | deExInstReg.isImm
+  registerFile.io.wb_enable := deExInstReg.fmt === R.id.U | deExInstReg.isImm |deExInstReg.isLoad
   registerFile.io.wb_address := deExInstReg.rd
 
 
@@ -420,18 +420,20 @@ class risc(code: Array[Int]) extends Module {
 
 
 
+
   val ALU = Module(new ALU)
   ALU.io.op1 := deExInstReg.op1
   ALU.io.op2 := deExInstReg.op2
   ALU.io.aluControl := deExInstReg.aluControl
 
-  registerFile.io.wb_data := ALU.io.result
+  registerFile.io.wb_data := Mux(deExInstReg.isLoad,DM.io.rdData, ALU.io.result)
 
   //debug
   io.reg := registerFile.io.registers(1)
 
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
-  printf("Current value of Reg1: %d\n", registerFile.io.registers(2))
+  printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
+  printf("Current value of rdData: %d\n", DM.io.rdData)
   /*
   printf("Current value of inst: %d\n", inst)
   printf("Current value of alu control: %d\n", decodedinst.aluControl)

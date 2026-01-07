@@ -168,25 +168,25 @@ class Control extends Module {
 
 class ALU extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
-    val rs1 = Input(UInt(32.W)) // rs1 is always a register
-    val rs2 = Input(UInt(32.W)) // rs2 can be an immediate
-    val fn = Input(UInt(4.W)) // ALU control
-    val rd = Output(UInt(32.W))
+    val op1 = Input(UInt(32.W)) // op1 is always a register
+    val op2 = Input(UInt(32.W)) // op2 can be an immediate
+    val aluControl = Input(UInt(4.W)) // ALU control
+    val result = Output(UInt(32.W))
   })
 
-  io.rd := 0.U
+  io.result := 0.U
 
-  switch(io.fn){
-    is(ADD.id.U){ io.rd := io.rs1 + io.rs2 } // ADD
-    is(SUB.id.U){ io.rd := io.rs1 - io.rs2 } // SUB
-    is(XOR.id.U){ io.rd := io.rs1 ^ io.rs2 } // XOR
-    is(OR.id.U){ io.rd := io.rs1 | io.rs2 } // OR
-    is(AND.id.U){ io.rd := io.rs1 & io.rs2 } // AND
-    is(SLL.id.U){ io.rd := io.rs1 << io.rs2 }  // Left shift logical
-    is(SRL.id.U){ io.rd := io.rs1 >> io.rs2 } // Right shift logical
-    is(SRA.id.U){ io.rd := (io.rs1.asSInt >> io.rs2).asUInt } // Right shift arithmetic hopefully works
-    is(SLT.id.U){ io.rd := (io.rs1.asSInt < io.rs2.asSInt).asUInt } // Set less than
-    is(SLTU.id.U){ io.rd := (io.rs1 < io.rs2).asUInt } // Set less than (U)
+  switch(io.aluControl){
+    is(ADD.id.U){ io.result := io.op1 + io.op2 } // ADD
+    is(SUB.id.U){ io.result := io.op1 - io.op2 } // SUB
+    is(XOR.id.U){ io.result := io.op1 ^ io.op2 } // XOR
+    is(OR.id.U){ io.result := io.op1 | io.op2 } // OR
+    is(AND.id.U){ io.result := io.op1 & io.op2 } // AND
+    is(SLL.id.U){ io.result := io.op1 << io.op2 }  // Left shift logical
+    is(SRL.id.U){ io.result := io.op1 >> io.op2 } // Right shift logical
+    is(SRA.id.U){ io.result := (io.op1.asSInt >> io.op2).asUInt } // Right shift arithmetic hopefully works
+    is(SLT.id.U){ io.result := (io.op1.asSInt < io.op2.asSInt).asUInt } // Set less than
+    is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }
 }
 

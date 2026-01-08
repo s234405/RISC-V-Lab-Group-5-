@@ -77,8 +77,6 @@ class Decode extends Module {
   val rs1 = Wire(UInt(5.W))
   val rs2 = Wire(UInt(5.W))
 
-
-
   // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
   io.decodedInstr := 0.U.asTypeOf(io.decodedInstr)   // dirty way to init everything at 0.U/false.B
   opcode := io.instruction(6,0)
@@ -90,7 +88,6 @@ class Decode extends Module {
   rs2 := io.instruction(24,20)
 
 
-
   io.decodedInstr.op1 := io.op1
   io.decodedInstr.op2 := Mux(io.decodedInstr.isImm,io.decodedInstr.imm.asUInt,io.op2)
   io.decodedInstr.rd := rd
@@ -99,23 +96,11 @@ class Decode extends Module {
   io.decodedInstr.fn3 := func3
 
 
-
-
   val aluControl = Module(new AluControl())
   aluControl.io.fn3 := func3
   aluControl.io.fn7 := func7
   aluControl.io.fmt := io.decodedInstr.fmt
   io.decodedInstr.aluControl := aluControl.io.AluSelect
-
-  //control
-  /*
-  val control = Module(new Control())
-  control.io.instruction := io.instruction
-  control.io.opcode := opcode
-  io.decodedInstr := control.io.decodedInstr
-  control.io.decodedInstrIn := io.decodedInstr
-
-   */
 
   switch(opcode){
     is(alu.U) { // R
@@ -224,77 +209,6 @@ class BranchControl extends Module {
     is(BGEU3.U) { io.BranchSelect := io.op1 >= io.op2 }
   }
 }
-
-class Control extends Module {
-  val io = IO(new Bundle { // need to consider width of inputs
-    val instruction = Input(UInt(32.W))
-    val opcode = Input(UInt(7.W))
-    val decodedInstrIn = Output(new decInstr())
-    val decodedInstr = Output(new decInstr())
-  })
-
-  // io.decodedInstr.asUInt := 0.U   // dirty way to init everything at 0.U/false.B
-  /*
-  io.decodedInstr := io.decodedInstrIn
-
-  switch(io.opcode){
-    is(alu.U) { // R
-      io.decodedInstr.fmt := R.id.U
-      io.decodedInstr.isRs2 := true.B
-    }
-    is(aluI.U) { // I
-      io.decodedInstr.fmt := I.id.U
-      io.decodedInstr.isImm := true.B
-
-    }
-    is(load.U) {  // I
-      io.decodedInstr.fmt := I.id.U
-      io.decodedInstr.isLoad := true.B
-    }
-    is(store.U) { // S
-      io.decodedInstr.fmt := S.id.U
-      io.decodedInstr.isStore := true.B
-    }
-    is(branch.U) { // B
-      io.decodedInstr.fmt := B.id.U
-      io.decodedInstr.isBranch := true.B
-    }
-    is(jal.U) { // J
-      io.decodedInstr.fmt := J.id.U
-      io.decodedInstr.isJal := true.B
-    }
-    is(jalR.U) { // I
-      io.decodedInstr.fmt := I.id.U
-      io.decodedInstr.isJalr := true.B
-    }
-    is(lui.U) { // U
-      io.decodedInstr.fmt := U.id.U
-      io.decodedInstr.isLui := true.B
-    }
-    is(auiPc.U) { // U
-      io.decodedInstr.fmt := U.id.U
-      io.decodedInstr.isAuipc := true.B
-    }
-    is(env.U) { // I
-      io.decodedInstr.fmt := I.id.U
-      io.decodedInstr.isEnv := true.B     }
-  }
-
-  switch(io.decodedInstr.fmt){
-    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)).asSInt }
-
-    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
-
-    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## !0.U(1.W)).asSInt }
-
-    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
-
-    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
-  }
-  */
-
-}
-
 
 class ALU extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
@@ -409,19 +323,8 @@ class DataMemory() extends Module {
 
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
-
-
-
   io.LED := Leds.io.port.rdData
 
-
-  /*
-  printf("New Clock\n")
-  printf("Current value of wrEna: %d\n", io.wrEna)
-  printf("Current value of wrData: %d\n", io.wrData)
-  printf("Current value of mem0: %d\n", mem(0).read(0.U(index+addrOffset, addrOffset)))
-
-   */
 
 }
 class instructionMem(code: Array[Int]) extends Module {
@@ -488,15 +391,11 @@ class risc(code: Array[Int]) extends Module {
   val instReg = RegInit(0x00000013.U)
   instReg := inst
 
-
-
   val decode = Module(new Decode)
   val registerFile = Module(new registerfile)
 
   decode.io.instruction := instReg
   val decodedinst = decode.io.decodedInstr
-
-
 
   decode.io.op1 := registerFile.io.rs1
   decode.io.op2 := registerFile.io.rs2
@@ -510,7 +409,6 @@ class risc(code: Array[Int]) extends Module {
   registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
-
   // datamemory
   val DM = Module(new DataMemory)
   DM.io.wrEna := decodedinst.isStore
@@ -518,10 +416,6 @@ class risc(code: Array[Int]) extends Module {
   DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
   DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedinst.op2
-
-
-
-
 
   val ALU = Module(new ALU)
   ALU.io.op1 := deExInstReg.op1
@@ -542,26 +436,7 @@ class risc(code: Array[Int]) extends Module {
 
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
-  /*
-  printf("Current value of LED: %d\n", io.LED)
-  printf("Current value of Reg1: %d\n", decodedinst.isStore)
 
-
-  printf("new clock\n")
-
-  printf("Current value of result: %d\n", ALU.io.result)
-  printf("Current value of regEna: %d\n", registerFile.io.wb_enable)
-  printf("Current value of rd: %d\n", decodedinst.rd)
-  printf("Current value of rd: %d\n", deExInstReg.isBranch)
-
-
-  printf("Current value of inst: %d\n", inst)
-  printf("Current value of alu control: %d\n", decodedinst.aluControl)
-  printf("Current value of alu result: %d\n", ALU.io.result)
-  printf("Current value of isimm: %d\n", decodedinst.isImm)
-
-
-   */
 
 
 

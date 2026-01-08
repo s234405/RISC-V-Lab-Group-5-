@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
+import lib.peripherals.MemoryMappedLeds
 import master.Opcode._
 import master.FMT._
 import master.{FMT, decInstr}
@@ -331,6 +332,11 @@ class DataMemory() extends Module {
   val index = log2Up(size/4)
   val addrOffset = 2
 
+  val Leds = Module(new MemoryMappedLeds(32))
+  Leds.io.port.write := false.B
+  Leds.io.port.wrData := 0.U
+  Leds.io.port.addr := 0.U
+  Leds.io.port.read := 0.U
   val mem = Array(
     SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
     SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
@@ -341,19 +347,26 @@ class DataMemory() extends Module {
     mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(0).read(io.rdAddr(index+addrOffset, addrOffset))
+  when(io.wrAddr(index+addrOffset) < size.U) {
+    when(io.wrEna && io.wrMask(0)) {
+      mem(0).write(io.wrAddr(index + addrOffset), io.wrData(7, 0))
+    }
+    when(io.wrEna && io.wrMask(1)) {
+      mem(1).write(io.wrAddr(index + addrOffset), io.wrData(15, 8))
+    }
+    when(io.wrEna && io.wrMask(2)) {
+      mem(2).write(io.wrAddr(index + addrOffset), io.wrData(23, 16))
+    }
+    when(io.wrEna && io.wrMask(3)) {
+      mem(3).write(io.wrAddr(index + addrOffset), io.wrData(31, 24))
+    }
+  }
+  //leds
 
-  when(io.wrEna && io.wrMask(0)){
-    mem(0).write(io.wrAddr(index+addrOffset),io.wrData(7, 0))
-  }
-  when(io.wrEna && io.wrMask(1)){
-    mem(1).write(io.wrAddr(index+addrOffset),io.wrData(15, 8))
-  }
-  when(io.wrEna && io.wrMask(2)){
-    mem(2).write(io.wrAddr(index+addrOffset),io.wrData(23, 16))
-  }
-  when(io.wrEna && io.wrMask(3)){
-    mem(3).write(io.wrAddr(index+addrOffset),io.wrData(31, 24))
-  }
+  Leds.io.port.write := true.B
+  Leds.io.port.wrData := io.wrData
+
+
   /*
   printf("New Clock\n")
   printf("Current value of wrEna: %d\n", io.wrEna)
@@ -361,6 +374,7 @@ class DataMemory() extends Module {
   printf("Current value of mem0: %d\n", mem(0).read(0.U(index+addrOffset, addrOffset)))
 
    */
+
 }
 class instructionMem(code: Array[Int]) extends Module {
   val io = IO(new Bundle{
@@ -391,7 +405,7 @@ class PcCounter() extends Module {
     val PC = Output(UInt(32.W))
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
-  val PcNext = WireDefault(Mux(io.branchEna,io.branchAddr,PcReg+4.U))
+  val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
 
@@ -409,6 +423,7 @@ class instructionFetch(code: Array[Int]) extends Module {
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
   instMem.io.address := PC.io.PC
+  printf("Current value of PC: %d\n", PC.io.PC)
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 }

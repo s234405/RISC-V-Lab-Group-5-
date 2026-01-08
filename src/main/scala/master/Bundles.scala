@@ -25,5 +25,6 @@ class decInstr extends Bundle {
   val rs1 = UInt(5.W)
   val rs2 = UInt(5.W)
   val rd = UInt(5.W)
+  val fn3 = UInt(3.W)
   val aluControl = UInt(4.W)
 }

@@ -44,3 +44,12 @@ object AluEnum extends Enumeration {
   type AluEnum = Value
   val ADD, SUB, XOR, OR, AND, SLL, SRL, SRA, SLT, SLTU = Value
 }
+
+object BranchFn3 {
+  val BEQ = 0x00
+  val BNE = 0x01
+  val BLT = 0x04
+  val BGE = 0x05
+  val BLTU = 0x06
+  val BGEU = 0x07
+}

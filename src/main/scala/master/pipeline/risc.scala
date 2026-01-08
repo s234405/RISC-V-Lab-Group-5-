@@ -312,12 +312,6 @@ class DataMemory() extends Module {
     }
   }
   //leds
-  printf("rdaddr %d\n", io.rdAddr(index+addrOffset, addrOffset))
-  printf("wraddr %d\n", io.wrAddr(index+addrOffset, addrOffset))
-  printf("wrData %d\n", io.wrData)
-  printf("rdData %d\n", io.rdData)
-  printf("Ena %d\n", io.wrEna)
-
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
   io.LED := Leds.io.port.rdData
@@ -407,12 +401,11 @@ class risc(code: Array[Int]) extends Module {
   DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
   DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedinst.op2
-  printf("addr2 %d\n",DM.io.rdAddr)
   // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
-  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad) && (deExInstReg.isBranch === false.B)
+  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
   //ALU
@@ -426,7 +419,14 @@ class risc(code: Array[Int]) extends Module {
   instFetch.io.branchAddr := deExInstReg.imm.asUInt
 
   //write back to registerfile
-  registerFile.io.wb_data := Mux(deExInstReg.isLoad,DM.io.rdData, ALU.io.result)
+  registerFile.io.wb_data := 0.U
+  when(deExInstReg.isLoad){
+    registerFile.io.wb_data := DM.io.rdData
+  }.elsewhen(deExInstReg.isLui){
+    registerFile.io.wb_data := deExInstReg.imm.asUInt
+  }.otherwise{
+    registerFile.io.wb_data := ALU.io.result
+  }
 
   //led output
   io.LED := DM.io.LED(15,0)

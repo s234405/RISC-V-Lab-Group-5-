@@ -13,7 +13,49 @@ import master.AluEnum._
 import  master.BranchFn3._
 object risc extends App {
   emitVerilog(
-    new risc(Array(0x00000093, 0x0ff00113, 0x00000013, 0x00000013,0x00102023,0x00000013, 0x00000013, 0x00108093 , 0x00000013, 0x00000013, 0x00000013, 0xfe20c4e3, 0x00000013, 0x00000013, 0x00100093, 0x00000013, 0x00000013, 0xfc0006e3, 0x00000013, 0x00000013)),
+    new risc(Array(
+      0x00000093,  // addi x1, x0, 0
+      0x0ff00113,  // addi x2, x0, 0xFF
+      0x00000193,  // addi x3, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+
+      // Loop1:
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00302023,  // sw x3, 0(x0)
+      0x00000013,  // addi x0, x0, 0
+      0x00108093,  // addi x1, x1, 1
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0xFE20C2E3,  // blt x1, x2, -28 (Loop1)
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00100193,  // addi x3, x0, 1
+      0x00000093,  // addi x1, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+
+      // Loop2:
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00302023,  // sw x3, 0(x0)
+      0x00000013,  // addi x0, x0, 0
+      0x00108093,  // addi x1, x1, 1
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0xFE20C2E3,  // blt x1, x2, -28 (Loop2)
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00000193,  // addi x3, x0, 0
+      0x00000093,  // addi x1, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0x00000013,  // addi x0, x0, 0
+      0xF80008E3,  // beq x0, x0, -112 (Loop1)
+      0x00000013,  // addi x0, x0, 0
+      0x00000013   // addi x0, x0, 0
+    )
+    ),
     Array("--target-dir", "generated")
   )
 }
@@ -308,6 +350,7 @@ class registerfile() extends Module {
     val registers = Output(Vec(32, UInt(32.W)))
   })
   val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+  registers(2) := 12500000.U
   io.registers := registers
   //read logic
   io.rs1 := registers(io.rs1_sel)
@@ -370,8 +413,6 @@ class DataMemory() extends Module {
 
 
   io.LED := Leds.io.port.rdData
-  printf("Current value of LED: %d\n", io.LED)
-  printf("Current value of wrEna: %d\n", io.wrEna)
 
 
   /*
@@ -415,7 +456,7 @@ class PcCounter() extends Module {
   val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
-  printf("Current value of pc: %d\n", io.PC)
+  printf("Current value of pc: %x\n", io.PC)
 
 }
 
@@ -439,7 +480,7 @@ class instructionFetch(code: Array[Int]) extends Module {
 
 class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
-    val reg = Output(UInt(32.W))
+    //val reg = Output(UInt(32.W))
     val LED = Output(UInt(16.W))
   })
   val instFetch = Module(new instructionFetch(code))
@@ -494,7 +535,7 @@ class risc(code: Array[Int]) extends Module {
   registerFile.io.wb_data := Mux(deExInstReg.isLoad,DM.io.rdData, ALU.io.result)
 
   //debug
-  io.reg := registerFile.io.registers(1)
+  //io.reg := registerFile.io.registers(1)
 
   //led
   io.LED := DM.io.LED(15,0)

@@ -366,6 +366,22 @@ class instructionFetch(code: Array[Int]) extends Module {
   io.ack := instMem.io.ack
 }
 
+class hazard extends Module{
+  val io = IO(new Bundle{
+    val exDeInst = Input(new decInstr)
+    val preDeInst = Input(new decInstr)
+    val forwardRs1 = Output(Bool())
+    val forwardRs2 = Output(Bool())
+  })
+  io.forwardRs1 := false.B
+  io.forwardRs2 := false.B
+  when(io.preDeInst.rs1 === io.exDeInst.rd){
+    io.forwardRs1 := true.B
+  }
+  when((io.preDeInst.rs2 === io.exDeInst.rd) && io.preDeInst.isRs2){
+    io.forwardRs2 := true.B
+  }
+}
 
 class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
@@ -378,6 +394,7 @@ class risc(code: Array[Int]) extends Module {
   val registerFile = Module(new registerfile)
   val DM = Module(new DataMemory)
   val ALU = Module(new ALU)
+  val hazard = Module(new hazard)
 
   //instruction fetch
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
@@ -408,9 +425,18 @@ class risc(code: Array[Int]) extends Module {
   registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
+  //hazard
+
+  hazard.io.exDeInst := deExInstReg
+  hazard.io.preDeInst := decodedinst
+  val preResultReg = RegNext(registerFile.io.wb_data)
+  val forwardReg1 = RegNext(hazard.io.forwardRs1)
+  val forwardReg2 = RegNext(hazard.io.forwardRs2)
   //ALU
-  ALU.io.op1 := deExInstReg.op1
-  ALU.io.op2 := deExInstReg.op2
+  ALU.io.op1 := Mux(forwardReg1, preResultReg, deExInstReg.op1)
+  ALU.io.op2 := Mux(forwardReg2, preResultReg, deExInstReg.op2)
+  //ALU.io.op1 := deExInstReg.op1
+  //ALU.io.op2 := deExInstReg.op2
   ALU.io.aluControl := deExInstReg.aluControl
   ALU.io.fn3 := deExInstReg.fn3
 
@@ -436,6 +462,13 @@ class risc(code: Array[Int]) extends Module {
 
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
+  printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
   printf("Dest reg file %d\n",deExInstReg.rd)
+  printf("source reg1 %d\n",decodedinst.rs1)
+  printf("source reg2 %d\n",decodedinst.rs2)
+  printf("instruction reg %x\n",instReg)
+
+  printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
+  printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
 
 }

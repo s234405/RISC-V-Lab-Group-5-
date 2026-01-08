@@ -236,21 +236,13 @@ class ALU extends Module {
     is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }
 
-
   val branchComponent = Module(new BranchControl())
   branchComponent.io.fn3 := io.fn3
   branchComponent.io.op1 := io.op1
   branchComponent.io.op2 := io.op2
   io.branchSelect := branchComponent.io.BranchSelect
 
-
-
-
-
 }
-
-
-
 
 class registerfile() extends Module {
   val io = IO(new Bundle {
@@ -264,7 +256,7 @@ class registerfile() extends Module {
     val registers = Output(Vec(32, UInt(32.W)))
   })
   val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-  registers(2) := 12500000.U
+  //registers(2) := 12500000.U //for blink
   io.registers := registers
   //read logic
   io.rs1 := registers(io.rs1_sel)
@@ -305,21 +297,26 @@ class DataMemory() extends Module {
     mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(0).read(io.rdAddr(index+addrOffset, addrOffset))
-  when(io.wrAddr(index+addrOffset) > 64.U) {
+  when(true.B){//io.rdAddr(index+addrOffset, addrOffset) > (64/8).U) {
     when(io.wrEna && io.wrMask(0)) {
-      mem(0).write(io.wrAddr(index + addrOffset), io.wrData(7, 0))
+      mem(0).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(7, 0))
     }
     when(io.wrEna && io.wrMask(1)) {
-      mem(1).write(io.wrAddr(index + addrOffset), io.wrData(15, 8))
+      mem(1).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(15, 8))
     }
     when(io.wrEna && io.wrMask(2)) {
-      mem(2).write(io.wrAddr(index + addrOffset), io.wrData(23, 16))
+      mem(2).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(23, 16))
     }
     when(io.wrEna && io.wrMask(3)) {
-      mem(3).write(io.wrAddr(index + addrOffset), io.wrData(31, 24))
+      mem(3).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(31, 24))
     }
   }
   //leds
+  printf("rdaddr %d\n", io.rdAddr(index+addrOffset, addrOffset))
+  printf("wraddr %d\n", io.wrAddr(index+addrOffset, addrOffset))
+  printf("wrData %d\n", io.wrData)
+  printf("rdData %d\n", io.rdData)
+  printf("Ena %d\n", io.wrEna)
 
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
@@ -337,17 +334,13 @@ class instructionMem(code: Array[Int]) extends Module {
   val addrReg = Reg(UInt(32.W))
   addrReg := io.address
 
-  //val code = Array(0x12300093,0x12300093, 0x12300093, 0x12300093) addi 123
-  //val code = Array(0x11100093, 0x22200113, 0x00000013, 0x00000013, 0x00000013, 002080b3) //add
-  //val code = Array(0x00100093, 0x00000013, 0x00000013, 0x00000013, 0x00102023) //sw
-
   val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
   io.inst := instructions(addrReg(31, 2))
 
   // first instruction shall not be executed (random address register)
   val firstReg = RegInit(true.B)
   firstReg := false.B
-  io.ack := !(firstReg || false.B) // add toggle
+  io.ack := !(firstReg || false.B)
 }
 class PcCounter() extends Module {
   val io = IO(new Bundle {
@@ -380,70 +373,69 @@ class instructionFetch(code: Array[Int]) extends Module {
 }
 
 
-
 class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
-    //val reg = Output(UInt(32.W))
+    val reg = Output(UInt(32.W))
     val LED = Output(UInt(16.W))
   })
+  //init modules
   val instFetch = Module(new instructionFetch(code))
-  val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
-  val instReg = RegInit(0x00000013.U)
-  instReg := inst
-
   val decode = Module(new Decode)
   val registerFile = Module(new registerfile)
+  val DM = Module(new DataMemory)
+  val ALU = Module(new ALU)
 
+  //instruction fetch
+  val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
+  val instReg = RegInit(0x00000013.U) // instruction register
+  instReg := inst
+
+  //decode stage
   decode.io.instruction := instReg
   val decodedinst = decode.io.decodedInstr
 
   decode.io.op1 := registerFile.io.rs1
   decode.io.op2 := registerFile.io.rs2
 
-  registerFile.io.rs1_sel := decode.io.decodedInstr.rs1
-  registerFile.io.rs2_sel := decode.io.decodedInstr.rs2
+  registerFile.io.rs1_sel := decodedinst.rs1
+  registerFile.io.rs2_sel := decodedinst.rs2
 
+  // datamemory
+
+  DM.io.wrEna := decodedinst.isStore
+  DM.io.wrAddr := decodedinst.op1 + decodedinst.imm.asUInt
+  DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
+  DM.io.wrMask := "b1111".U
+  DM.io.wrData := decodedinst.op2
+  printf("addr2 %d\n",DM.io.rdAddr)
+  // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
   registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
-  // datamemory
-  val DM = Module(new DataMemory)
-  DM.io.wrEna := decodedinst.isStore
-  DM.io.wrAddr := decodedinst.op1 + decodedinst.imm.asUInt
-  DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
-  DM.io.wrMask := "b1111".U
-  DM.io.wrData := decodedinst.op2
-
-  val ALU = Module(new ALU)
+  //ALU
   ALU.io.op1 := deExInstReg.op1
   ALU.io.op2 := deExInstReg.op2
   ALU.io.aluControl := deExInstReg.aluControl
   ALU.io.fn3 := deExInstReg.fn3
 
+  //branch
   instFetch.io.branchEna := ALU.io.branchSelect && deExInstReg.isBranch
   instFetch.io.branchAddr := deExInstReg.imm.asUInt
 
+  //write back to registerfile
   registerFile.io.wb_data := Mux(deExInstReg.isLoad,DM.io.rdData, ALU.io.result)
 
-  //debug
-  //io.reg := registerFile.io.registers(1)
-
-  //led
+  //led output
   io.LED := DM.io.LED(15,0)
+
+  //debug output
+  io.reg := registerFile.io.registers(1)
 
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
-
-
-
-
-
-
+  printf("Dest reg file %d\n",deExInstReg.rd)
 
 }
-
-
-

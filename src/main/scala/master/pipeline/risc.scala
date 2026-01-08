@@ -54,6 +54,7 @@ class Decode extends Module {
   io.decodedInstr.rd := rd
   io.decodedInstr.rs1 := rs1
   io.decodedInstr.rs2 := rs2
+  io.decodedInstr.fn3 := func3
 
 
 
@@ -122,7 +123,7 @@ class Decode extends Module {
 
     is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
 
-    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## !0.U(1.W)).asSInt }
+    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)).asSInt }
 
     is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
 
@@ -260,6 +261,7 @@ class ALU extends Module {
     val aluControl = Input(UInt(4.W)) // ALU control
     val result = Output(UInt(32.W))
     val branchSelect = Output(Bool())
+    val fn3 = Input(UInt(3.W))
   })
 
   io.result := 0.U
@@ -278,14 +280,12 @@ class ALU extends Module {
     is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }
 
-  /*
+
   val branchComponent = Module(new BranchControl())
-  branchComponent.io.fn3 := io.func3
+  branchComponent.io.fn3 := io.fn3
   branchComponent.io.op1 := io.op1
   branchComponent.io.op2 := io.op2
   io.branchSelect := branchComponent.io.BranchSelect
-
-   */
 
 
 
@@ -424,6 +424,7 @@ class instructionFetch(code: Array[Int]) extends Module {
   PC.io.branchAddr := io.branchAddr
   instMem.io.address := PC.io.PC
   printf("Current value of PC: %d\n", PC.io.PC)
+  printf("Current value of Branch addr: %d\n", io.branchAddr.asSInt)
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 }
@@ -438,8 +439,7 @@ class risc(code: Array[Int]) extends Module {
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
   val instReg = RegInit(0x00000013.U)
   instReg := inst
-  instFetch.io.branchEna := false.B
-  instFetch.io.branchAddr := 0.U
+
 
 
   val decode = Module(new Decode)
@@ -479,6 +479,10 @@ class risc(code: Array[Int]) extends Module {
   ALU.io.op1 := deExInstReg.op1
   ALU.io.op2 := deExInstReg.op2
   ALU.io.aluControl := deExInstReg.aluControl
+  ALU.io.fn3 := deExInstReg.fn3
+
+  instFetch.io.branchEna := ALU.io.branchSelect && deExInstReg.isBranch
+  instFetch.io.branchAddr := deExInstReg.imm.asUInt
 
   registerFile.io.wb_data := Mux(deExInstReg.isLoad,DM.io.rdData, ALU.io.result)
 
@@ -488,13 +492,14 @@ class risc(code: Array[Int]) extends Module {
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of rdData: %d\n", DM.io.rdData)
+  printf("Current value of op1: %d\n", decodedinst.op1)
+  printf("Current value of op2: %d\n", decodedinst.op2)
   /*
   printf("Current value of inst: %d\n", inst)
   printf("Current value of alu control: %d\n", decodedinst.aluControl)
   printf("Current value of alu result: %d\n", ALU.io.result)
   printf("Current value of isimm: %d\n", decodedinst.isImm)
-  printf("Current value of op1: %d\n", decodedinst.op1)
-  printf("Current value of op2: %d\n", decodedinst.op2)
+
 
    */
 

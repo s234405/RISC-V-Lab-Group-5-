@@ -13,7 +13,7 @@ import master.AluEnum._
 import  master.BranchFn3._
 object risc extends App {
   emitVerilog(
-    new risc(Array(0x12300093,0x12300093, 0x12300093, 0x12300093)),
+    new risc(Array(0x00000093, 0x0ff00113, 0x00000013, 0x00000013,0x00102023,0x00000013, 0x00000013, 0x00108093 , 0x00000013, 0x00000013, 0x00000013, 0xfe20c4e3, 0x00000013, 0x00000013, 0x00100093, 0x00000013, 0x00000013, 0xfc0006e3, 0x00000013, 0x00000013)),
     Array("--target-dir", "generated")
   )
 }
@@ -327,6 +327,7 @@ class DataMemory() extends Module {
     val wrData = Input(UInt (32.W))
     val wrEna = Input(Bool ())
     val wrMask = Input(UInt (4.W))
+    val LED = Output(UInt(32.W))
   })
   val size = 4096
   val index = log2Up(size/4)
@@ -347,7 +348,7 @@ class DataMemory() extends Module {
     mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
     mem(0).read(io.rdAddr(index+addrOffset, addrOffset))
-  when(io.wrAddr(index+addrOffset) < size.U) {
+  when(io.wrAddr(index+addrOffset) > 64.U) {
     when(io.wrEna && io.wrMask(0)) {
       mem(0).write(io.wrAddr(index + addrOffset), io.wrData(7, 0))
     }
@@ -363,8 +364,14 @@ class DataMemory() extends Module {
   }
   //leds
 
-  Leds.io.port.write := true.B
+  Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
+
+
+
+  io.LED := Leds.io.port.rdData
+  printf("Current value of LED: %d\n", io.LED)
+  printf("Current value of wrEna: %d\n", io.wrEna)
 
 
   /*
@@ -408,6 +415,7 @@ class PcCounter() extends Module {
   val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
+  printf("Current value of pc: %d\n", io.PC)
 
 }
 
@@ -423,8 +431,6 @@ class instructionFetch(code: Array[Int]) extends Module {
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
   instMem.io.address := PC.io.PC
-  printf("Current value of PC: %d\n", PC.io.PC)
-  printf("Current value of Branch addr: %d\n", io.branchAddr.asSInt)
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 }
@@ -434,6 +440,7 @@ class instructionFetch(code: Array[Int]) extends Module {
 class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val reg = Output(UInt(32.W))
+    val LED = Output(UInt(16.W))
   })
   val instFetch = Module(new instructionFetch(code))
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
@@ -459,7 +466,7 @@ class risc(code: Array[Int]) extends Module {
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
-  registerFile.io.wb_enable := deExInstReg.fmt === R.id.U | deExInstReg.isImm |deExInstReg.isLoad
+  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
 
@@ -489,12 +496,24 @@ class risc(code: Array[Int]) extends Module {
   //debug
   io.reg := registerFile.io.registers(1)
 
+  //led
+  io.LED := DM.io.LED(15,0)
+
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
-  printf("Current value of rdData: %d\n", DM.io.rdData)
-  printf("Current value of op1: %d\n", decodedinst.op1)
-  printf("Current value of op2: %d\n", decodedinst.op2)
   /*
+  printf("Current value of LED: %d\n", io.LED)
+  printf("Current value of Reg1: %d\n", decodedinst.isStore)
+
+
+  printf("new clock\n")
+
+  printf("Current value of result: %d\n", ALU.io.result)
+  printf("Current value of regEna: %d\n", registerFile.io.wb_enable)
+  printf("Current value of rd: %d\n", decodedinst.rd)
+  printf("Current value of rd: %d\n", deExInstReg.isBranch)
+
+
   printf("Current value of inst: %d\n", inst)
   printf("Current value of alu control: %d\n", decodedinst.aluControl)
   printf("Current value of alu result: %d\n", ALU.io.result)

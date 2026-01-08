@@ -9,7 +9,7 @@ import master.FMT._
 import master.{FMT, decInstr}
 import master.Fn3Values._
 import master.AluEnum._
-
+import  master.BranchFn3._
 object risc extends App {
   emitVerilog(
     new risc(Array(0x12300093,0x12300093, 0x12300093, 0x12300093)),
@@ -160,6 +160,26 @@ class AluControl extends Module {
   }
 }
 
+class BranchControl extends Module {
+  val io = IO(new Bundle { // need to consider width of inputs
+    val fn3 = Input(UInt(3.W))
+    val op1 = Input(UInt(32.W))
+    val op2 = Input(UInt(32.W))
+    val BranchSelect = Output(Bool())
+  })
+
+  // default
+  io.BranchSelect := false.B
+
+  switch(io.fn3){
+    is(BEQ3.U) { io.BranchSelect := io.op1 === io.op2 }
+    is(BNE3.U) { io.BranchSelect := io.op1 =/= io.op2 }
+    is(BLT3.U) { io.BranchSelect := io.op1.asSInt < io.op2.asSInt }
+    is(BGE3.U) { io.BranchSelect := io.op1.asSInt >= io.op2.asSInt }
+    is(BLTU3.U) { io.BranchSelect := io.op1 < io.op2 }
+    is(BGEU3.U) { io.BranchSelect := io.op1 >= io.op2 }
+  }
+}
 
 class Control extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
@@ -238,9 +258,11 @@ class ALU extends Module {
     val op2 = Input(UInt(32.W)) // op2 can be an immediate
     val aluControl = Input(UInt(4.W)) // ALU control
     val result = Output(UInt(32.W))
+    val branchSelect = Output(Bool())
   })
 
   io.result := 0.U
+  io.branchSelect := false.B
 
   switch(io.aluControl){
     is(ADD.id.U){ io.result := io.op1 + io.op2 } // ADD
@@ -254,7 +276,24 @@ class ALU extends Module {
     is(SLT.id.U){ io.result := (io.op1.asSInt < io.op2.asSInt).asUInt } // Set less than
     is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }
+
+  /*
+  val branchComponent = Module(new BranchControl())
+  branchComponent.io.fn3 := io.func3
+  branchComponent.io.op1 := io.op1
+  branchComponent.io.op2 := io.op2
+  io.branchSelect := branchComponent.io.BranchSelect
+
+   */
+
+
+
+
+
 }
+
+
+
 
 class registerfile() extends Module {
   val io = IO(new Bundle {

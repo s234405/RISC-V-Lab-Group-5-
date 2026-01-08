@@ -30,6 +30,16 @@ object Fn3Values {
   val SLTU3 = 0x3
 }
 
+object BranchFn3 {
+  val BEQ3 = 0x0
+  val BNE3 = 0x1
+  val BLT3 = 0x4
+  val BGE3 = 0x5
+  val BLTU3 = 0x6
+  val BGEU3 = 0x7
+}
+
+
 object AluEnum extends Enumeration {
   type AluEnum = Value
   val ADD, SUB, XOR, OR, AND, SLL, SRL, SRA, SLT, SLTU = Value

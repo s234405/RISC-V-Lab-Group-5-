@@ -12,6 +12,7 @@ import master.decInstr
 import master.Fn3Values._
 import master.AluEnum._
 import  master.BranchFn3._
+import master.memFn3._
 object risc extends App {
   emitVerilog(
     new risc(Array(
@@ -276,44 +277,97 @@ class DataMemory extends Module {
     val rdAddr = Input(UInt (32.W))
     val rdData = Output(UInt (32.W))
     val wrAddr = Input(UInt (32.W))
+    val fn3 = Input(UInt (3.W))
     val wrData = Input(UInt (32.W))
     val wrEna = Input(Bool ())
-    val wrMask = Input(UInt (4.W))
+    // val wrMask = Input(UInt (4.W))
     val LED = Output(UInt(32.W))
   })
   val size = 4096
   val index = log2Up(size/4)
   val addrOffset = 2
+  val offset = io.wrAddr(1,0)
+  // set all bits 0
+  val select = WireInit(0.U(4.W))
 
   val Leds = Module(new MemoryMappedLeds(32))
   Leds.io.port.write := false.B
   Leds.io.port.wrData := 0.U
   Leds.io.port.addr := 0.U
   Leds.io.port.read := 0.U
-  val mem = Array(
-    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst),
-    SyncReadMem(size/4, UInt(8.W), SyncReadMem.WriteFirst))
+  //io.fn3 := 0.U
+  io.rdData := 0.U
 
-  io.rdData := mem(3).read(io.rdAddr(index+addrOffset, addrOffset)) ##
-    mem(2).read(io.rdAddr(index+addrOffset, addrOffset)) ##
-    mem(1).read(io.rdAddr(index+addrOffset, addrOffset)) ##
-    mem(0).read(io.rdAddr(index+addrOffset, addrOffset))
-  when(true.B){//io.rdAddr(index+addrOffset, addrOffset) > (64/8).U) {
-    when(io.wrEna && io.wrMask(0)) {
-      mem(0).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(7, 0))
+
+
+  val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
+  // val wordAddr = io.wrAddr >> 2
+
+
+
+  switch(io.fn3){
+    is(BYTE.U){
+      select := 1.U << offset
+      io.rdData := Fill(24,mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)(7)) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
     }
-    when(io.wrEna && io.wrMask(1)) {
-      mem(1).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(15, 8))
+    is(HALF.U){
+      select := 3.U << offset
+      io.rdData := Fill(24,mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U)(7)) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
     }
-    when(io.wrEna && io.wrMask(2)) {
-      mem(2).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(23, 16))
+    is(WORD.U){
+      select := "b1111".U
+      io.rdData := mem.read(io.rdAddr(index+addrOffset, addrOffset))(3) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(2) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(1) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(0)
     }
-    when(io.wrEna && io.wrMask(3)) {
-      mem(3).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(31, 24))
+    is(BYTEU.U){
+      io.rdData := Fill(24,0.U) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
     }
+    is(HALFU.U){
+      io.rdData := Fill(16,0.U) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U) ##
+        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
+
+    }
+
   }
+
+
+  val wrVec = Wire (Vec (4, UInt (8.W)))
+  val wrMask = Wire (Vec (4, Bool ()))
+  for (i <- 0 until 4) {
+    wrVec (i) := io. wrData (i * 8 + 7, i * 8)
+    wrMask (i) := select(i)
+  }
+
+
+  when(io.wrEna) {
+    mem.write(io.wrAddr, wrVec, wrMask)
+  }
+
+
+  /*
+    when(true.B){//io.rdAddr(index+addrOffset, addrOffset) > (64/8).U) {
+      when(io.wrEna && select(0)) {
+        mem.write(io.wrAddr(index + addrOffset, addrOffset)(0), io.wrData(7, 0))
+      }
+      when(io.wrEna && select(1)) {
+        mem.write(io.wrAddr(index + addrOffset, addrOffset)(1), io.wrData(15, 8))
+      }
+      when(io.wrEna && select(2)) {
+        mem.write(io.wrAddr(index + addrOffset, addrOffset)(2), io.wrData(23, 16))
+      }
+      when(io.wrEna && select(3)) {
+        mem.write(io.wrAddr(index + addrOffset, addrOffset)(3), io.wrData(31, 24))
+      }
+    }
+   */
+
   //Leds
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
@@ -426,8 +480,9 @@ class risc(code: Array[Int]) extends Module {
   DM.io.wrEna := decodedInst.isStore
   DM.io.wrAddr := decodedInst.op1 + decodedInst.imm
   DM.io.rdAddr := decodedInst.op1 + decodedInst.imm
-  DM.io.wrMask := "b1111".U
+  // DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedInst.op2
+  DM.io.fn3 := decodedInst.fn3
   // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr

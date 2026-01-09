@@ -61,6 +61,7 @@ object risc extends App {
   )
 }
 
+//noinspection ScalaWeakerAccess
 class Decode extends Module {
   val io = IO(new Bundle { // need to consider width of inputs
     val instruction = Input(UInt(32.W))
@@ -237,6 +238,7 @@ class ALU extends Module {
     is(SLTU.id.U){ io.result := (io.op1 < io.op2).asUInt } // Set less than (U)
   }
 
+  //noinspection ScalaWeakerAccess
   val branchComponent = Module(new BranchControl())
   branchComponent.io.fn3 := io.fn3
   branchComponent.io.op1 := io.op1
@@ -344,7 +346,7 @@ class PcCounter extends Module {
     val PC = Output(UInt(32.W))
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
-  val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr,PcReg+4.U))
+  val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr-8.U,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
   printf("Current value of pc: %x\n", io.PC)
@@ -373,15 +375,22 @@ class hazard extends Module{
     val preDeInst = Input(new decInstr)
     val forwardRs1 = Output(Bool())
     val forwardRs2 = Output(Bool())
+    val branch = Input(Bool())
+    val flush = Output(Bool())
   })
   io.forwardRs1 := false.B
   io.forwardRs2 := false.B
+  io.flush := false.B
   when(io.preDeInst.rs1 === io.exDeInst.rd){
     io.forwardRs1 := true.B
   }
   when((io.preDeInst.rs2 === io.exDeInst.rd) && io.preDeInst.isRs2){
     io.forwardRs2 := true.B
   }
+  when(io.branch){
+    io.flush := true.B
+  }
+
 }
 
 class risc(code: Array[Int]) extends Module {
@@ -430,9 +439,21 @@ class risc(code: Array[Int]) extends Module {
 
   hazard.io.exDeInst := deExInstReg
   hazard.io.preDeInst := decodedInst
+  val branchEna = ALU.io.branchSelect && deExInstReg.isBranch
+  hazard.io.branch := branchEna
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
+  //flush
+  when(hazard.io.flush) {
+    deExInstReg.op1 := 0.U
+    deExInstReg.op2 := 0.U
+    deExInstReg.rd := 0.U
+    deExInstReg.aluControl := ADD.id.U
+
+    instReg := 0x00000013.U
+  }
+
   //ALU
   ALU.io.op1 := Mux(forwardReg1, preResultReg, deExInstReg.op1)
   ALU.io.op2 := Mux(forwardReg2, preResultReg, deExInstReg.op2)
@@ -442,7 +463,7 @@ class risc(code: Array[Int]) extends Module {
   ALU.io.fn3 := deExInstReg.fn3
 
   //branch
-  instFetch.io.branchEna := ALU.io.branchSelect && deExInstReg.isBranch
+  instFetch.io.branchEna := branchEna
   instFetch.io.branchAddr := deExInstReg.imm
 
   //write back to registerFile

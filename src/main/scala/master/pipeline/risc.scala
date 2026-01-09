@@ -443,7 +443,7 @@ class risc(code: Array[Int]) extends Module {
 
   hazard.io.exDeInst := deExInstReg
   hazard.io.preDeInst := decodedInst
-  val branchEna = (ALU.io.branchSelect && deExInstReg.isBranch) || deExInstReg.isJal //|| deExInstReg.isJalr
+  val branchEna = (ALU.io.branchSelect && deExInstReg.isBranch) //|| //deExInstReg.isJal //|| deExInstReg.isJalr
   hazard.io.branch := branchEna
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)

@@ -156,7 +156,9 @@ class Decode extends Module {
 
     is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ) }
 
-    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ) }
+    is(J.id.U){ io.decodedInstr.imm := (Fill(11, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ##  0.U(1.W)) }
+                                //imm := (Fill(11, instruction(31)) ## instruction(19, 12) ## instruction(20) ## instruction(30, 21) ## 0.U(1.W)).asSInt
+
   }
 
 }
@@ -359,12 +361,14 @@ class instructionFetch(code: Array[Int]) extends Module {
     val branchAddr = Input(UInt (32.W))
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
+    val PCVal = Output(UInt(32.W))
   })
   val instMem = Module(new instructionMem(code))
   val PC = Module(new PcCounter)
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
   instMem.io.address := PC.io.PC
+  io.PCVal := PC.io.PC
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 }
@@ -410,7 +414,7 @@ class risc(code: Array[Int]) extends Module {
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
   val instReg = RegInit(0x00000013.U) // instruction register
   instReg := inst
-
+  val PC = instFetch.io.PCVal
   //decode stage
   decode.io.instruction := instReg
   val decodedInst = decode.io.decodedInstr
@@ -432,14 +436,14 @@ class risc(code: Array[Int]) extends Module {
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
-  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui) && (deExInstReg.isBranch === false.B)
+  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui || deExInstReg.isJal ) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
   //hazard
 
   hazard.io.exDeInst := deExInstReg
   hazard.io.preDeInst := decodedInst
-  val branchEna = ALU.io.branchSelect && deExInstReg.isBranch
+  val branchEna = (ALU.io.branchSelect && deExInstReg.isBranch) || deExInstReg.isJal //|| deExInstReg.isJalr
   hazard.io.branch := branchEna
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
@@ -463,7 +467,7 @@ class risc(code: Array[Int]) extends Module {
   ALU.io.fn3 := deExInstReg.fn3
 
   //branch
-  instFetch.io.branchEna := branchEna
+  instFetch.io.branchEna := branchEna || deExInstReg.isJal //|| deExInstReg.isJalr
   instFetch.io.branchAddr := deExInstReg.imm
 
   //write back to registerFile
@@ -472,6 +476,8 @@ class risc(code: Array[Int]) extends Module {
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
+  }.elsewhen(deExInstReg.isJal){
+    registerFile.io.wb_data := PC - 8.U
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -485,7 +491,7 @@ class risc(code: Array[Int]) extends Module {
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
-  printf("Dest reg file %d\n",deExInstReg.rd)
+  printf("imm %d\n",deExInstReg.imm)
   printf("source reg1 %d\n",decodedInst.rs1)
   printf("source reg2 %d\n",decodedInst.rs2)
   printf("instruction reg %x\n",instReg)

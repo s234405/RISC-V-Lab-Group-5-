@@ -1,3 +1,4 @@
+//noinspection TypeAnnotation,ScalaWeakerAccess
 package master.pipeline
 
 import chisel3._
@@ -7,7 +8,7 @@ import lib.peripherals.{MemoryMappedUart, StringStreamer}
 import lib.peripherals.MemoryMappedLeds
 import master.Opcode._
 import master.FMT._
-import master.{FMT, decInstr}
+import master.decInstr
 import master.Fn3Values._
 import master.AluEnum._
 import  master.BranchFn3._
@@ -89,7 +90,7 @@ class Decode extends Module {
 
 
   io.decodedInstr.op1 := io.op1
-  io.decodedInstr.op2 := Mux(io.decodedInstr.isImm,io.decodedInstr.imm.asUInt,io.op2)
+  io.decodedInstr.op2 := Mux(io.decodedInstr.isImm,io.decodedInstr.imm,io.op2)
   io.decodedInstr.rd := rd
   io.decodedInstr.rs1 := rs1
   io.decodedInstr.rs2 := rs2
@@ -146,15 +147,15 @@ class Decode extends Module {
   }
 
   switch(io.decodedInstr.fmt){
-    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)).asSInt }
+    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)) }
 
-    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)).asSInt }
+    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)) }
 
-    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)).asSInt }
+    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)) }
 
-    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ).asSInt }
+    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ) }
 
-    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ).asSInt }
+    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ) }
   }
 
 }
@@ -172,7 +173,7 @@ class AluControl extends Module {
 
   switch(io.fn3){
     is(ADD3.U) {
-      when(((io.fn7 === 0x20.U) && (io.fmt === R.id.U))) { io.AluSelect := SUB.id.U }       // beware
+      when((io.fn7 === 0x20.U) && (io.fmt === R.id.U)) { io.AluSelect := SUB.id.U }       // beware
         .otherwise( io.AluSelect := ADD.id.U )
     }
     is(XOR3.U) { io.AluSelect := XOR.id.U }
@@ -244,7 +245,7 @@ class ALU extends Module {
 
 }
 
-class registerfile() extends Module {
+class registerFile extends Module {
   val io = IO(new Bundle {
     val rs1_sel = Input(UInt(5.W))
     val rs2_sel = Input(UInt(5.W))
@@ -268,7 +269,7 @@ class registerfile() extends Module {
   }
 }
 
-class DataMemory() extends Module {
+class DataMemory extends Module {
   val io = IO(new Bundle {
     val rdAddr = Input(UInt (32.W))
     val rdData = Output(UInt (32.W))
@@ -311,7 +312,7 @@ class DataMemory() extends Module {
       mem(3).write(io.wrAddr(index + addrOffset, addrOffset), io.wrData(31, 24))
     }
   }
-  //leds
+  //Leds
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
   io.LED := Leds.io.port.rdData
@@ -336,7 +337,7 @@ class instructionMem(code: Array[Int]) extends Module {
   firstReg := false.B
   io.ack := !(firstReg || false.B)
 }
-class PcCounter() extends Module {
+class PcCounter extends Module {
   val io = IO(new Bundle {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
@@ -391,7 +392,7 @@ class risc(code: Array[Int]) extends Module {
   //init modules
   val instFetch = Module(new instructionFetch(code))
   val decode = Module(new Decode)
-  val registerFile = Module(new registerfile)
+  val registerFile = Module(new registerFile)
   val DM = Module(new DataMemory)
   val ALU = Module(new ALU)
   val hazard = Module(new hazard)
@@ -403,21 +404,21 @@ class risc(code: Array[Int]) extends Module {
 
   //decode stage
   decode.io.instruction := instReg
-  val decodedinst = decode.io.decodedInstr
+  val decodedInst = decode.io.decodedInstr
 
   decode.io.op1 := registerFile.io.rs1
   decode.io.op2 := registerFile.io.rs2
 
-  registerFile.io.rs1_sel := decodedinst.rs1
-  registerFile.io.rs2_sel := decodedinst.rs2
+  registerFile.io.rs1_sel := decodedInst.rs1
+  registerFile.io.rs2_sel := decodedInst.rs2
 
-  // datamemory
+  // dataMemory
 
-  DM.io.wrEna := decodedinst.isStore
-  DM.io.wrAddr := decodedinst.op1 + decodedinst.imm.asUInt
-  DM.io.rdAddr := decodedinst.op1 + decodedinst.imm.asUInt
+  DM.io.wrEna := decodedInst.isStore
+  DM.io.wrAddr := decodedInst.op1 + decodedInst.imm
+  DM.io.rdAddr := decodedInst.op1 + decodedInst.imm
   DM.io.wrMask := "b1111".U
-  DM.io.wrData := decodedinst.op2
+  DM.io.wrData := decodedInst.op2
   // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
@@ -428,7 +429,7 @@ class risc(code: Array[Int]) extends Module {
   //hazard
 
   hazard.io.exDeInst := deExInstReg
-  hazard.io.preDeInst := decodedinst
+  hazard.io.preDeInst := decodedInst
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
@@ -442,14 +443,14 @@ class risc(code: Array[Int]) extends Module {
 
   //branch
   instFetch.io.branchEna := ALU.io.branchSelect && deExInstReg.isBranch
-  instFetch.io.branchAddr := deExInstReg.imm.asUInt
+  instFetch.io.branchAddr := deExInstReg.imm
 
-  //write back to registerfile
+  //write back to registerFile
   registerFile.io.wb_data := 0.U
   when(deExInstReg.isLoad){
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
-    registerFile.io.wb_data := deExInstReg.imm.asUInt
+    registerFile.io.wb_data := deExInstReg.imm
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -464,8 +465,8 @@ class risc(code: Array[Int]) extends Module {
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
   printf("Dest reg file %d\n",deExInstReg.rd)
-  printf("source reg1 %d\n",decodedinst.rs1)
-  printf("source reg2 %d\n",decodedinst.rs2)
+  printf("source reg1 %d\n",decodedInst.rs1)
+  printf("source reg2 %d\n",decodedInst.rs2)
   printf("instruction reg %x\n",instReg)
 
   printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)

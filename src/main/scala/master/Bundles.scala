@@ -19,7 +19,7 @@ class decInstr extends Bundle {
   val isEnv = Bool()
   val isImm = Bool()
   val isRs2 = Bool()
-  val imm = SInt(32.W)
+  val imm = UInt(32.W)
   val op1 = UInt(32.W)
   val op2 = UInt(32.W)
   val rs1 = UInt(5.W)

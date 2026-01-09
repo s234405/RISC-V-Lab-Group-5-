@@ -461,8 +461,6 @@ class risc(code: Array[Int]) extends Module {
   //ALU
   ALU.io.op1 := Mux(forwardReg1, preResultReg, deExInstReg.op1)
   ALU.io.op2 := Mux(forwardReg2, preResultReg, deExInstReg.op2)
-  //ALU.io.op1 := deExInstReg.op1
-  //ALU.io.op2 := deExInstReg.op2
   ALU.io.aluControl := deExInstReg.aluControl
   ALU.io.fn3 := deExInstReg.fn3
 
@@ -487,7 +485,7 @@ class risc(code: Array[Int]) extends Module {
 
   //debug output
   io.reg := registerFile.io.registers(1)
-
+/*
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
@@ -498,5 +496,5 @@ class risc(code: Array[Int]) extends Module {
 
   printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
   printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
-
+*/
 }

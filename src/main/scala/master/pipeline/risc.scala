@@ -351,7 +351,7 @@ class PcCounter extends Module {
   val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr-8.U,PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
-  printf("Current value of pc: %x\n", io.PC)
+  //printf("Current value of pc: %x\n", io.PC)
 
 }
 

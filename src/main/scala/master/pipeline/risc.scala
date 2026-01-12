@@ -299,57 +299,23 @@ class DataMemory extends Module {
 
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
 
-  val tempVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
+  val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
+  val offsetRd = RegNext(io.wrAddr(1,0))
+  val fn3Temp = RegNext(io.fn3)
 
-  val fn3Temp = WireDefault(
-    //WORD.U
-    io.fn3
-  )
-
-
-  printf("fn3 inside MEM stage: %x\n", fn3Temp)
-  switch(fn3Temp){
-    is(BYTE.U){
-      printf("GG WE'RE COOKED IN BYTE \n")
-      select := 1.U << offset
-      io.rdData := Fill(24, tempVec(offset)(7)) ##
-        tempVec(offset)
-    }
-    is(HALF.U){
-      select := 3.U << offset
-      io.rdData := Fill(24, tempVec(offset + 1.U)(7)) ##
-        tempVec(offset + 1.U) ##
-        tempVec(offset)
-    }
-    is(WORD.U){
-      select := "b1111".U
-      io.rdData := tempVec(3) ##
-        tempVec(2) ##
-        tempVec(1) ##
-        tempVec(0)
-      val memOut2 = mem.read(0x03f.U)
-
-      printf("rdDATA in WORD[%x] next stage: %x %x %x %x\n",
-        io.rdAddr(index+addrOffset, addrOffset),
-        memOut2(3), memOut2(2), memOut2(1), memOut2(0))
-    }
-    is(BYTEU.U){
-      io.rdData := Fill(24,0.U) ##
-        tempVec(offset)
-    }
-    is(HALFU.U){
-      io.rdData := Fill(16,0.U) ##
-        tempVec(offset + 1.U) ##
-        tempVec(offset)
-    }
+  switch(io.fn3){
+    is(BYTE.U){ select := 1.U << offset }
+    is(HALF.U){ select := 3.U << offset }
+    is(WORD.U){ select := "b1111".U }
   }
-  val memOut = mem.read(0x03f.U)
 
-  printf("rdDATA in MEM[%x] stage: %x %x %x %x io: %x\n",
-    0x03f.U,
-    memOut(3), memOut(2), memOut(1), memOut(0), io.rdData)
-
-
+  io.rdData := MuxLookup(fn3Temp, 0.U, Seq(
+    BYTE.U   -> (Fill(24, rdVec(offsetRd)(7)) ## rdVec(offsetRd)),
+    HALF.U   -> (Fill(16, rdVec(offsetRd+1.U)(7)) ## rdVec(offsetRd+1.U) ## rdVec(offsetRd)),
+    WORD.U   -> (rdVec(3) ## rdVec(2) ## rdVec(1) ## rdVec(0)),
+    BYTEU.U  -> (Fill(24,0.U) ## rdVec(offsetRd)),
+    HALFU.U  -> (Fill(16,0.U) ## rdVec(offsetRd+1.U) ## rdVec(offsetRd))
+  ))
 
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
@@ -358,20 +324,8 @@ class DataMemory extends Module {
     wrMask (i) := select(i)
   }
 
-
-
   when(io.wrEna) {
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
-
-    printf("Writing to memory addr %x: %x %x %x %x\n",
-      io.wrAddr(index+addrOffset, addrOffset),
-      wrVec(3), wrVec(2), wrVec(1), wrVec(0))
-
-    printf("Writing mem[%x] = %x %x %x %x, mask=%b\n",
-      io.wrAddr(index+addrOffset, addrOffset),
-      wrVec(3), wrVec(2), wrVec(1), wrVec(0),
-      wrMask.asUInt)
-
   }
 
   //Leds

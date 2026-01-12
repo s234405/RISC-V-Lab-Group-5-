@@ -327,6 +327,11 @@ class DataMemory extends Module {
         tempVec(2) ##
         tempVec(1) ##
         tempVec(0)
+      val memOut2 = mem.read(0x03f.U)
+
+      printf("rdDATA in WORD[%x] next stage: %x %x %x %x\n",
+        io.rdAddr(index+addrOffset, addrOffset),
+        memOut2(3), memOut2(2), memOut2(1), memOut2(0))
     }
     is(BYTEU.U){
       io.rdData := Fill(24,0.U) ##
@@ -338,6 +343,13 @@ class DataMemory extends Module {
         tempVec(offset)
     }
   }
+  val memOut = mem.read(0x03f.U)
+
+  printf("rdDATA in MEM[%x] stage: %x %x %x %x io: %x\n",
+    0x03f.U,
+    memOut(3), memOut(2), memOut(1), memOut(0), io.rdData)
+
+
 
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
@@ -350,12 +362,17 @@ class DataMemory extends Module {
 
   when(io.wrEna) {
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
+
     printf("Writing to memory addr %x: %x %x %x %x\n",
       io.wrAddr(index+addrOffset, addrOffset),
       wrVec(3), wrVec(2), wrVec(1), wrVec(0))
 
-  }
+    printf("Writing mem[%x] = %x %x %x %x, mask=%b\n",
+      io.wrAddr(index+addrOffset, addrOffset),
+      wrVec(3), wrVec(2), wrVec(1), wrVec(0),
+      wrMask.asUInt)
 
+  }
 
   //Leds
   Leds.io.port.write := io.wrEna
@@ -522,7 +539,7 @@ class risc(code: Array[Int]) extends Module {
   //write back to registerFile
   registerFile.io.wb_data := 0.U
   when(deExInstReg.isLoad){
-    printf("We're commiting the data: %x\n",DM.io.rdData)
+    printf("We're commiting the data: %x\n", DM.io.rdData)
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm

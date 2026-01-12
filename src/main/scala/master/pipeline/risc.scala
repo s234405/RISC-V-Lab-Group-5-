@@ -295,48 +295,49 @@ class DataMemory extends Module {
   Leds.io.port.wrData := 0.U
   Leds.io.port.addr := 0.U
   Leds.io.port.read := 0.U
-  //io.fn3 := 0.U
   io.rdData := 0.U
 
-
-
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
-  // val wordAddr = io.wrAddr >> 2
+
+  val tempVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
+
+  val fn3Temp = WireDefault(
+    //WORD.U
+    io.fn3
+  )
 
 
-
-  switch(io.fn3){
+  printf("fn3 inside MEM stage: %x\n", fn3Temp)
+  switch(fn3Temp){
     is(BYTE.U){
+      printf("GG WE'RE COOKED IN BYTE \n")
       select := 1.U << offset
-      io.rdData := Fill(24,mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)(7)) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
+      io.rdData := Fill(24, tempVec(offset)(7)) ##
+        tempVec(offset)
     }
     is(HALF.U){
       select := 3.U << offset
-      io.rdData := Fill(24,mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U)(7)) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
+      io.rdData := Fill(24, tempVec(offset + 1.U)(7)) ##
+        tempVec(offset + 1.U) ##
+        tempVec(offset)
     }
     is(WORD.U){
       select := "b1111".U
-      io.rdData := mem.read(io.rdAddr(index+addrOffset, addrOffset))(3) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(2) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(1) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(0)
+      io.rdData := tempVec(3) ##
+        tempVec(2) ##
+        tempVec(1) ##
+        tempVec(0)
     }
     is(BYTEU.U){
       io.rdData := Fill(24,0.U) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
+        tempVec(offset)
     }
     is(HALFU.U){
       io.rdData := Fill(16,0.U) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset + 1.U) ##
-        mem.read(io.rdAddr(index+addrOffset, addrOffset))(offset)
-
+        tempVec(offset + 1.U) ##
+        tempVec(offset)
     }
-
   }
-
 
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
@@ -346,35 +347,27 @@ class DataMemory extends Module {
   }
 
 
+
   when(io.wrEna) {
-    mem.write(io.wrAddr, wrVec, wrMask)
+    mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
+    printf("Writing to memory addr %x: %x %x %x %x\n",
+      io.wrAddr(index+addrOffset, addrOffset),
+      wrVec(3), wrVec(2), wrVec(1), wrVec(0))
+
   }
 
-
-  /*
-    when(true.B){//io.rdAddr(index+addrOffset, addrOffset) > (64/8).U) {
-      when(io.wrEna && select(0)) {
-        mem.write(io.wrAddr(index + addrOffset, addrOffset)(0), io.wrData(7, 0))
-      }
-      when(io.wrEna && select(1)) {
-        mem.write(io.wrAddr(index + addrOffset, addrOffset)(1), io.wrData(15, 8))
-      }
-      when(io.wrEna && select(2)) {
-        mem.write(io.wrAddr(index + addrOffset, addrOffset)(2), io.wrData(23, 16))
-      }
-      when(io.wrEna && select(3)) {
-        mem.write(io.wrAddr(index + addrOffset, addrOffset)(3), io.wrData(31, 24))
-      }
-    }
-   */
 
   //Leds
   Leds.io.port.write := io.wrEna
   Leds.io.port.wrData := io.wrData
   io.LED := Leds.io.port.rdData
 
-
 }
+
+
+
+
+
 class instructionMem(code: Array[Int]) extends Module {
   val io = IO(new Bundle{
     val address = Input(UInt(32.W))
@@ -482,13 +475,16 @@ class risc(code: Array[Int]) extends Module {
   DM.io.rdAddr := decodedInst.op1 + decodedInst.imm
   // DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedInst.op2
-  DM.io.fn3 := decodedInst.fn3
+
+
   // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
   registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
+
+  DM.io.fn3 := decodedInst.fn3
 
   //hazard
 
@@ -499,6 +495,8 @@ class risc(code: Array[Int]) extends Module {
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
+
+
   //flush
   when(hazard.io.flush) {
     deExInstReg.op1 := 0.U
@@ -524,6 +522,7 @@ class risc(code: Array[Int]) extends Module {
   //write back to registerFile
   registerFile.io.wb_data := 0.U
   when(deExInstReg.isLoad){
+    printf("We're commiting the data: %x\n",DM.io.rdData)
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
@@ -540,6 +539,9 @@ class risc(code: Array[Int]) extends Module {
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
+  //printf("Current value of fn3: %x\n", decodedInst.fn3)
+  //printf("fn3 in MEM stage: %x\n", DM.io.fn3)
+
   printf("Dest reg file %d\n",deExInstReg.rd)
   printf("source reg1 %d\n",decodedInst.rs1)
   printf("source reg2 %d\n",decodedInst.rs2)

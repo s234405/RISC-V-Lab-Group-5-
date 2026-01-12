@@ -345,13 +345,14 @@ class PcCounter extends Module {
   val io = IO(new Bundle {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
+    val AddrSet = Input(Bool())
     val PC = Output(UInt(32.W))
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
-  val PcNext = WireDefault(Mux(io.branchEna,PcReg+io.branchAddr-8.U,PcReg+4.U))
+  val PcNext = WireDefault(Mux(io.branchEna,Mux(io.AddrSet,io.branchAddr,PcReg+io.branchAddr-8.U),PcReg+4.U))
   PcReg := PcNext
   io.PC := PcNext
-  //printf("Current value of pc: %x\n", io.PC)
+  printf("Current value of pc: %x\n", io.PC)
 
 }
 
@@ -359,6 +360,7 @@ class instructionFetch(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
+    val AddrSet = Input(Bool())
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
     val PCVal = Output(UInt(32.W))
@@ -367,6 +369,7 @@ class instructionFetch(code: Array[Int]) extends Module {
   val PC = Module(new PcCounter)
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
+  PC.io.AddrSet := io.AddrSet
   instMem.io.address := PC.io.PC
   io.PCVal := PC.io.PC
   io.inst := instMem.io.inst
@@ -443,15 +446,16 @@ class risc(code: Array[Int]) extends Module {
 
   hazard.io.exDeInst := deExInstReg
   hazard.io.preDeInst := decodedInst
-  val branchEna = (ALU.io.branchSelect && deExInstReg.isBranch) //|| //deExInstReg.isJal //|| deExInstReg.isJalr
+  val branchEna = (ALU.io.branchSelect && deExInstReg.isBranch) || deExInstReg.isJal || deExInstReg.isJalr
   hazard.io.branch := branchEna
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
   //flush
   when(hazard.io.flush) {
-    deExInstReg.op1 := 0.U
-    deExInstReg.op2 := 0.U
+    //deExInstReg.op1 := 0.U
+    //deExInstReg.op2 := 0.U
+    deExInstReg := 0.U.asTypeOf(deExInstReg)
     deExInstReg.rd := 0.U
     deExInstReg.aluControl := ADD.id.U
 
@@ -465,8 +469,9 @@ class risc(code: Array[Int]) extends Module {
   ALU.io.fn3 := deExInstReg.fn3
 
   //branch
-  instFetch.io.branchEna := branchEna || deExInstReg.isJal //|| deExInstReg.isJalr
-  instFetch.io.branchAddr := deExInstReg.imm
+  instFetch.io.branchEna := branchEna
+  instFetch.io.AddrSet := deExInstReg.isJalr
+  instFetch.io.branchAddr := Mux(deExInstReg.isJalr,deExInstReg.op1+deExInstReg.imm,deExInstReg.imm)
 
   //write back to registerFile
   registerFile.io.wb_data := 0.U
@@ -474,8 +479,8 @@ class risc(code: Array[Int]) extends Module {
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
-  }.elsewhen(deExInstReg.isJal){
-    registerFile.io.wb_data := PC - 8.U
+  }.elsewhen(deExInstReg.isJal || deExInstReg.isJalr){
+    registerFile.io.wb_data := PC - 4.U
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -485,16 +490,18 @@ class risc(code: Array[Int]) extends Module {
 
   //debug output
   io.reg := registerFile.io.registers(1)
-/*
+
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
-  printf("imm %d\n",deExInstReg.imm)
+  printf("branch ena %d\n",branchEna)
+  printf("branch addr %d\n",instFetch.io.branchAddr)
+
   printf("source reg1 %d\n",decodedInst.rs1)
   printf("source reg2 %d\n",decodedInst.rs2)
   printf("instruction reg %x\n",instReg)
 
   printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
   printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
-*/
+
 }

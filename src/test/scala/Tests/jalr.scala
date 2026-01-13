@@ -26,7 +26,7 @@ class jalr extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013   // addi x0, x0, 0 (nop)
       ))) { dut =>
       dut.clock.step(75)
-      dut.io.reg.expect("h9".U)
+      dut.io.reg(1).expect("h9".U)
       dut.clock.step()
     }
   }

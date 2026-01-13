@@ -10,7 +10,7 @@ class swlw extends AnyFlatSpec with ChiselScalatestTester {
 
     test(new risc(Array(0x11100113, 0x00000013, 0x00000013, 0x00000013, 0x0e202fa3 ,0x00000013, 0x00000013, 0x00000013, 0x0ff02083,0x00000013,0x00000013,0x00000013))) { dut =>
       dut.clock.step(20)
-      dut.io.reg.expect("h111".U)
+      dut.io.reg(1).expect("h111".U)
       dut.clock.step()
     }
   }

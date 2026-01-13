@@ -402,7 +402,7 @@ class hazard extends Module{
 
 class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
-    val reg = Output(UInt(32.W))
+    val reg = Output(Vec(32, UInt(32.W)))
     val LED = Output(UInt(16.W))
   })
   //init modules
@@ -489,7 +489,7 @@ class risc(code: Array[Int]) extends Module {
   io.LED := DM.io.LED(15,0)
 
   //debug output
-  io.reg := registerFile.io.registers(1)
+  io.reg := registerFile.io.registers
 
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))

@@ -23,7 +23,7 @@ class flush extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013   // addi x0, x0, 0 (nop)
       ))) { dut =>
       dut.clock.step(10)
-      dut.io.reg.expect("h0".U)
+      dut.io.reg(1).expect("h0".U)
       dut.clock.step()
     }
   }

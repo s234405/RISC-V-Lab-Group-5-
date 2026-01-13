@@ -13,7 +13,7 @@ class addi extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.clock.step()
       dut.clock.step()
-      dut.io.reg.expect("h123".U)
+      dut.io.reg(1).expect("h123".U)
       dut.clock.step()
     }
   }

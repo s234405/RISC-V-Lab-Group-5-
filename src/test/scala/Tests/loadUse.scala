@@ -23,7 +23,7 @@ class loadUse extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013
     ))) { dut =>
       dut.clock.step(10)
-      dut.io.reg.expect("h2".U)
+      dut.io.reg(1).expect("h2".U)
       dut.clock.step()
     }
   }

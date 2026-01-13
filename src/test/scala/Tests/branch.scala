@@ -18,7 +18,7 @@ class branch extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013   // addi x0, x0, 0 (nop)
       ))) { dut =>
       dut.clock.step(15)
-      dut.io.reg.expect("h3".U)
+      dut.io.reg(1).expect("h3".U)
       dut.clock.step()
     }
   }

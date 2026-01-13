@@ -148,18 +148,27 @@ class Decode extends Module {
       io.decodedInstr.isEnv := true.B     }
   }
 
-  switch(io.decodedInstr.fmt){
-    is(I.id.U){ io.decodedInstr.imm := (Fill(20,io.instruction(31)) ## io.instruction(31,20)) }
+  switch(io.decodedInstr.fmt) {
+    is(I.id.U) {
+      io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 20))
+    }
 
-    is(S.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7)) }
+    is(S.id.U) {
+      io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(31, 25) ## io.instruction(11, 7))
+    }
 
-    is(B.id.U){ io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W)) }
+    is(B.id.U) {
+      io.decodedInstr.imm := (Fill(20, io.instruction(31)) ## io.instruction(7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W))
+    }
 
-    is(U.id.U){ io.decodedInstr.imm := ( io.instruction(31, 12) ## Fill(12, 0.U(1.W)) ) }
+    is(U.id.U) {
+      io.decodedInstr.imm := (io.instruction(31, 12) ## Fill(12, 0.U(1.W)))
+    }
 
-    is(J.id.U){ io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21)  ## Fill(12, 0.U(1.W)) ) }
+    is(J.id.U) {
+      io.decodedInstr.imm := (Fill(11, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21) ## 0.U(1.W))
+    }
   }
-
 }
 
 class AluControl extends Module {

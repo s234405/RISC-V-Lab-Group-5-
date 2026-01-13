@@ -279,6 +279,13 @@ class registerFile extends Module {
   when(io.wb_enable && io.wb_address =/= 0.U){
     registers(io.wb_address) := io.wb_data
   }
+  //write first logic
+  when(io.rs1_sel === io.wb_address){
+    io.rs1 := io.wb_data
+  }
+  when(io.rs2_sel === io.wb_address){
+    io.rs2 := io.wb_data
+  }
 }
 
 class DataMemory extends Module {

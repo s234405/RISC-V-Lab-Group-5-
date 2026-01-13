@@ -39,6 +39,14 @@ object BranchFn3 {
   val BGEU3 = 0x7
 }
 
+object memFn3 {
+  val BYTE = 0x0
+  val HALF = 0x1
+  val WORD = 0x2
+  val BYTEU = 0x4
+  val HALFU = 0x5
+}
+
 
 object AluEnum extends Enumeration {
   type AluEnum = Value

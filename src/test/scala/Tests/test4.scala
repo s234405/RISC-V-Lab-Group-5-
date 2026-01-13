@@ -1,7 +1,6 @@
 
 package Tests
 
-import chisel3._
 import chiseltest._
 import master.pipeline.risc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,30 +8,49 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.nio.file.{Files, Paths}
 import java.nio.{ByteBuffer, ByteOrder}
 
-class test1 extends AnyFlatSpec with ChiselScalatestTester {
-  "task1 programs" should "run all .bin/.res pairs" in {
+class test4 extends AnyFlatSpec with ChiselScalatestTester {
+  "task4 programs" should "run all .bin/.res pairs" in {
 
-    // .bin files (paths start at \src\...)
+
+    // .bin files (paths start at src\...)
     val binFiles: Array[String] = Array(
-      "src\\test\\testData\\task1\\addlarge.bin",
-      "src\\test\\testData\\task1\\addneg.bin",
-      "src\\test\\testData\\task1\\addpos.bin",
-      "src\\test\\testData\\task1\\bool.bin",
-      "src\\test\\testData\\task1\\set.bin",
-      "src\\test\\testData\\task1\\shift.bin",
-      "src\\test\\testData\\task1\\shift2.bin"
+      "src\\test\\testData\\task4\\t1.bin",
+      "src\\test\\testData\\task4\\t2.bin",
+      "src\\test\\testData\\task4\\t3.bin",
+      "src\\test\\testData\\task4\\t4.bin",
+      "src\\test\\testData\\task4\\t5.bin",
+      "src\\test\\testData\\task4\\t6.bin",
+      "src\\test\\testData\\task4\\t7.bin",
+      "src\\test\\testData\\task4\\t8.bin",
+      "src\\test\\testData\\task4\\t9.bin",
+      "src\\test\\testData\\task4\\t10.bin",
+      "src\\test\\testData\\task4\\t11.bin",
+      "src\\test\\testData\\task4\\t12.bin",
+      "src\\test\\testData\\task4\\t13.bin",
+      "src\\test\\testData\\task4\\t14.bin",
+      "src\\test\\testData\\task4\\t15.bin"
     )
 
     // .res files
     val resFiles: Array[String] = Array(
-      "src\\test\\testData\\task1\\addlarge.res",
-      "src\\test\\testData\\task1\\addneg.res",
-      "src\\test\\testData\\task1\\addpos.res",
-      "src\\test\\testData\\task1\\bool.res",
-      "src\\test\\testData\\task1\\set.res",
-      "src\\test\\testData\\task1\\shift.res",
-      "src\\test\\testData\\task1\\shift2.res"
+      "src\\test\\testData\\task4\\t1.res",
+      "src\\test\\testData\\task4\\t2.res",
+      "src\\test\\testData\\task4\\t3.res",
+      "src\\test\\testData\\task4\\t4.res",
+      "src\\test\\testData\\task4\\t5.res",
+      "src\\test\\testData\\task4\\t6.res",
+      "src\\test\\testData\\task4\\t7.res",
+      "src\\test\\testData\\task4\\t8.res",
+      "src\\test\\testData\\task4\\t9.res",
+      "src\\test\\testData\\task4\\t10.res",
+      "src\\test\\testData\\task4\\t11.res",
+      "src\\test\\testData\\task4\\t12.res",
+      "src\\test\\testData\\task4\\t13.res",
+      "src\\test\\testData\\task4\\t14.res",
+      "src\\test\\testData\\task4\\t15.res"
     )
+
+
 
     require(
       binFiles.length == resFiles.length,
@@ -65,7 +83,13 @@ class test1 extends AnyFlatSpec with ChiselScalatestTester {
 
       test(new risc(instructionInts)) { dut =>
 
-        dut.clock.step(instructionInts.length-6)
+        var cycles = 0
+
+        while (!dut.io.stop.peek().litToBoolean && cycles < 10000) {
+          dut.clock.step()
+          cycles += 1
+        }
+        println(s"Stopped after $cycles cycles")
 
         // If RISC-V x0 is hard-wired to zero, ensure expectedRegValues(0) == 0 or skip i=0
         for (i <- 0 until 32) {
@@ -75,6 +99,7 @@ class test1 extends AnyFlatSpec with ChiselScalatestTester {
           }
         }
       }
+      info(s"passed program: $name ")
     }
   }
 

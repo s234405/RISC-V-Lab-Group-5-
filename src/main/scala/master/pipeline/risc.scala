@@ -404,6 +404,7 @@ class risc(code: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val reg = Output(Vec(32, UInt(32.W)))
     val LED = Output(UInt(16.W))
+    val stop = Output(Bool())
   })
   //init modules
   val instFetch = Module(new instructionFetch(code))
@@ -451,8 +452,14 @@ class risc(code: Array[Int]) extends Module {
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
+  //stop on ecall
+  val stop = RegInit(false.B)
+  io.stop := stop
+  when(deExInstReg.isEnv){
+    stop := true.B
+  }
   //flush
-  when(hazard.io.flush) {
+  when(hazard.io.flush||stop) {
     //deExInstReg.op1 := 0.U
     //deExInstReg.op2 := 0.U
     deExInstReg := 0.U.asTypeOf(deExInstReg)

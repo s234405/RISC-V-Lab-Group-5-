@@ -118,6 +118,8 @@ class Decode extends Module {
     is(load.U) {  // I
       io.decodedInstr.fmt := I.id.U
       io.decodedInstr.isLoad := true.B
+      //printf("load op1 data: %d\n", io.decodedInstr.op1)
+      //printf("load rs1 sel: %d\n", io.decodedInstr.rs1)
     }
     is(store.U) { // S
       io.decodedInstr.fmt := S.id.U
@@ -280,7 +282,7 @@ class registerFile extends Module {
     registers(io.wb_address) := io.wb_data
   }
   //write first logic
-  when(io.wb_address =/= 0.U) {
+  when((io.wb_address =/= 0.U) && io.wb_enable) {
     when(io.rs1_sel === io.wb_address) {
       io.rs1 := io.wb_data
     }
@@ -353,8 +355,8 @@ class DataMemory(preload: Array[Int]) extends Module {
     }
   }
 
-  val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
-  val offsetRd = RegNext(io.rdAddr(1,0))
+  val rdVec = mem.read(io.wrAddr(index+addrOffset, addrOffset))
+  val offsetRd = RegNext(io.wrAddr(1,0))
   val fn3Temp = RegNext(io.fn3)
 
   switch(io.fn3){
@@ -377,9 +379,9 @@ class DataMemory(preload: Array[Int]) extends Module {
     wrVec (i) := io.wrData (i * 8 + 7, i * 8)
     wrMask (i) := select(i)
   }
-
   when(io.wrEna) {
-    printf("We're saving the data: %x\n", io.wrData)
+    //printf("We're saving the data: %x\n", io.wrData)
+    //printf("to  address: %d\n", io.wrAddr)
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
   }
 
@@ -424,7 +426,7 @@ class PcCounter extends Module {
   val PcNext = WireDefault(Mux(io.branchEna,Mux(io.AddrSet,io.branchAddr,PcReg+io.branchAddr-8.U),PcReg+4.U))
   PcReg := Mux(io.start,PcNext,PcReg)
   io.PC := PcNext
-  printf("Current value of pc: %x\n", io.PC)
+  //printf("Current value of pc: %x\n", io.PC)
 
 }
 
@@ -462,7 +464,7 @@ class hazard extends Module{
   io.forwardRs1 := false.B
   io.forwardRs2 := false.B
   io.flush := false.B
-  when((io.preDeInst.rs1 === io.exDeInst.rd) && (io.exDeInst.rd =/= 0.U)){
+  when((io.preDeInst.rs1 === io.exDeInst.rd) && (io.exDeInst.rd =/= 0.U) && (!io.exDeInst.isLoad) && (!io.preDeInst.isLoad)){
     io.forwardRs1 := true.B
   }
   when((io.preDeInst.rs2 === io.exDeInst.rd ) && (io.preDeInst.isRs2) && (io.exDeInst.rd =/= 0.U)){
@@ -566,20 +568,23 @@ class risc(code: Array[Int]) extends Module {
 
   //write back to registerFile
   registerFile.io.wb_data := 0.U
-
+  //printf("Current value of pc: %x\n", PCReg2)
   when(deExInstReg.isLoad){
-    printf("We're loading the data: %d\n", DM.io.rdData)
-    printf("from address: %d\n", deExInstReg.op1 + deExInstReg.imm)
-    printf("to register %d\n", deExInstReg.rd)
+    //printf("We're loading the data: %d\n", DM.io.rdData)
+    //printf("from address: %d\n", (deExInstReg.op1 + deExInstReg.imm).asSInt)
+    //printf("to register %d\n", deExInstReg.rd)
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
   }.elsewhen(deExInstReg.isJal){
     registerFile.io.wb_data := PCReg2
+    //printf("Jal data: %d\n", PCReg2)
   }.elsewhen(deExInstReg.isJalr){
     registerFile.io.wb_data := PCReg2
+    //printf("Jalr data: %d\n", PCReg2)
   }.elsewhen(deExInstReg.isAuipc){
-    registerFile.io.wb_data := PCReg2+deExInstReg.imm
+    registerFile.io.wb_data := PCReg2+deExInstReg.imm - 4.U
+    //printf("Auipc data: %d\n", PCReg2+deExInstReg.imm -4.U)
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -589,14 +594,20 @@ class risc(code: Array[Int]) extends Module {
 
   //debug output
   io.reg := registerFile.io.registers
+
   /*
-  printf("Current value of Reg17: %d\n", registerFile.io.registers(17))
   printf("instruction reg %x\n",instReg)
   printf("Current value of Reg0: %d\n", registerFile.io.registers(0))
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
-  printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
+  printf("Current value of Reg6: %d\n", registerFile.io.registers(6))
    printf("Current value of Reg10: %d\n", registerFile.io.registers(10))
+  printf("Current value of Reg11: %d\n", registerFile.io.registers(11))
+  printf("Current value of Reg12: %d\n", registerFile.io.registers(12))
+  printf("Current value of Reg13: %d\n", registerFile.io.registers(13))
+  printf("Current value of Reg14: %d\n", registerFile.io.registers(14))
+  printf("Current value of Reg15: %d\n", registerFile.io.registers(15))
+
    //printf("Current value of fn3: %x\n", decodedInst.fn3)
    printf("result: %x\n", ALU.io.result)
 
@@ -609,7 +620,7 @@ class risc(code: Array[Int]) extends Module {
 
    printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
    printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
-*/
 
+*/
 
 }

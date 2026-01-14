@@ -12,6 +12,7 @@ class jumpSwLw extends AnyFlatSpec with ChiselScalatestTester {
 
       0x00000093, // 0x00000000: addi x1, x0, 0
       0x00100113, // 0x00000004: addi x2, x0, 1
+      0x00102023, // sw x1 0(x0)
       0x0080006f, // 0x00000008: jal  x0, 8     (to 0x00000010 <jump>)
       0x00202023, // 0x0000000c: sw   x2, 0(x0)
 

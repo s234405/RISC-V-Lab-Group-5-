@@ -280,15 +280,17 @@ class registerFile extends Module {
     registers(io.wb_address) := io.wb_data
   }
   //write first logic
-  when(io.rs1_sel === io.wb_address){
-    io.rs1 := io.wb_data
-  }
-  when(io.rs2_sel === io.wb_address){
-    io.rs2 := io.wb_data
+  when(io.wb_address =/= 0.U) {
+    when(io.rs1_sel === io.wb_address) {
+      io.rs1 := io.wb_data
+    }
+    when(io.rs2_sel === io.wb_address) {
+      io.rs2 := io.wb_data
+    }
   }
 }
 
-class DataMemory extends Module {
+class DataMemory(preload: Array[Int]) extends Module {
   val io = IO(new Bundle {
     val rdAddr = Input(UInt (32.W))
     val rdData = Output(UInt (32.W))
@@ -296,10 +298,11 @@ class DataMemory extends Module {
     val fn3 = Input(UInt (3.W))
     val wrData = Input(UInt (32.W))
     val wrEna = Input(Bool ())
+    val done = Output(Bool())
     // val wrMask = Input(UInt (4.W))
     val LED = Output(UInt(32.W))
   })
-  val size = 4096
+  val size = 1048576 //4096
   val index = log2Up(size/4)
   val addrOffset = 2
   val offset = io.wrAddr(1,0)
@@ -315,8 +318,43 @@ class DataMemory extends Module {
 
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
 
+  // ---- Parameters ----
+  val depth     = size / 4                      // number of 32-bit words
+  val indexBits = log2Up(depth)
+
+
+  // ---- Preload state ----
+  val initIdx  = RegInit(0.U(indexBits.W))
+  val initDone = RegInit(false.B)
+  io.done := initDone
+  val instructions = VecInit(preload.toIndexedSeq.map(_.S(32.W).asUInt))
+
+  when (!initDone) {
+
+    val word = instructions(initIdx)
+
+    // Split the 32-bit word into 4 bytes, LSB at index 0
+    val bytes = Wire(Vec(4, UInt(8.W)))
+    for (i <- 0 until 4) {
+
+    }
+    bytes(0) := word(7,0)
+    bytes(1) := word(15,8)
+    bytes(2) := word(23,16)
+    bytes(3) := word(31,24)
+
+    // Write all 4 bytes with mask = true
+    mem.write(initIdx, bytes, VecInit(Seq.fill(4)(true.B)))
+
+    //printf("bytes  %d,%d,%d,%d\n",bytes(0),bytes(1),bytes(2),bytes(3))
+    initIdx := initIdx + 1.U
+    when (initIdx === (preload.length-1).U) {
+      initDone := true.B
+    }
+  }
+
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
-  val offsetRd = RegNext(io.wrAddr(1,0))
+  val offsetRd = RegNext(io.rdAddr(1,0))
   val fn3Temp = RegNext(io.fn3)
 
   switch(io.fn3){
@@ -336,11 +374,12 @@ class DataMemory extends Module {
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
   for (i <- 0 until 4) {
-    wrVec (i) := io. wrData (i * 8 + 7, i * 8)
+    wrVec (i) := io.wrData (i * 8 + 7, i * 8)
     wrMask (i) := select(i)
   }
 
   when(io.wrEna) {
+    printf("We're saving the data: %x\n", io.wrData)
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
   }
 
@@ -378,11 +417,12 @@ class PcCounter extends Module {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
     val AddrSet = Input(Bool())
+    val start = Input(Bool())
     val PC = Output(UInt(32.W))
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
   val PcNext = WireDefault(Mux(io.branchEna,Mux(io.AddrSet,io.branchAddr,PcReg+io.branchAddr-8.U),PcReg+4.U))
-  PcReg := PcNext
+  PcReg := Mux(io.start,PcNext,PcReg)
   io.PC := PcNext
   printf("Current value of pc: %x\n", io.PC)
 
@@ -393,6 +433,7 @@ class instructionFetch(code: Array[Int]) extends Module {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
     val AddrSet = Input(Bool())
+    val start = Input(Bool())
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
     val PCVal = Output(UInt(32.W))
@@ -402,6 +443,7 @@ class instructionFetch(code: Array[Int]) extends Module {
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
   PC.io.AddrSet := io.AddrSet
+  PC.io.start := io.start
   instMem.io.address := PC.io.PC
   io.PCVal := PC.io.PC
   io.inst := instMem.io.inst
@@ -420,10 +462,10 @@ class hazard extends Module{
   io.forwardRs1 := false.B
   io.forwardRs2 := false.B
   io.flush := false.B
-  when(io.preDeInst.rs1 === io.exDeInst.rd){
+  when((io.preDeInst.rs1 === io.exDeInst.rd) && (io.exDeInst.rd =/= 0.U)){
     io.forwardRs1 := true.B
   }
-  when((io.preDeInst.rs2 === io.exDeInst.rd) && io.preDeInst.isRs2){
+  when((io.preDeInst.rs2 === io.exDeInst.rd ) && (io.preDeInst.isRs2) && (io.exDeInst.rd =/= 0.U)){
     io.forwardRs2 := true.B
   }
   when(io.branch){
@@ -442,7 +484,7 @@ class risc(code: Array[Int]) extends Module {
   val instFetch = Module(new instructionFetch(code))
   val decode = Module(new Decode)
   val registerFile = Module(new registerFile)
-  val DM = Module(new DataMemory)
+  val DM = Module(new DataMemory(code))
   val ALU = Module(new ALU)
   val hazard = Module(new hazard)
 
@@ -451,6 +493,8 @@ class risc(code: Array[Int]) extends Module {
   val instReg = RegInit(0x00000013.U) // instruction register
   instReg := inst
   val PC = instFetch.io.PCVal
+  val PCReg1 = RegNext(PC)
+  val PCReg2 = RegNext(PCReg1)
   //decode stage
   decode.io.instruction := instReg
   val decodedInst = decode.io.decodedInstr
@@ -462,8 +506,9 @@ class risc(code: Array[Int]) extends Module {
   registerFile.io.rs2_sel := decodedInst.rs2
 
   // dataMemory
+  val start = DM.io.done
+  instFetch.io.start := start
 
-  DM.io.wrEna := decodedInst.isStore
   DM.io.wrAddr := decodedInst.op1 + decodedInst.imm
   DM.io.rdAddr := decodedInst.op1 + decodedInst.imm
   // DM.io.wrMask := "b1111".U
@@ -474,7 +519,7 @@ class risc(code: Array[Int]) extends Module {
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
   deExInstReg := decode.io.decodedInstr
 
-  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui || deExInstReg.isJal ) && (deExInstReg.isBranch === false.B)
+  registerFile.io.wb_enable := ((deExInstReg.fmt === R.id.U) || deExInstReg.isImm || deExInstReg.isLoad || deExInstReg.isLui || deExInstReg.isJal ||deExInstReg.isJalr ||deExInstReg.isAuipc ) && (deExInstReg.isBranch === false.B)
   registerFile.io.wb_address := deExInstReg.rd
 
   DM.io.fn3 := decodedInst.fn3
@@ -495,7 +540,8 @@ class risc(code: Array[Int]) extends Module {
     stop := true.B
   }
   //flush
-  when(hazard.io.flush||stop) {
+  DM.io.wrEna := decodedInst.isStore && !hazard.io.flush
+  when(hazard.io.flush) {
     //deExInstReg.op1 := 0.U
     //deExInstReg.op2 := 0.U
     deExInstReg := 0.U.asTypeOf(deExInstReg)
@@ -520,13 +566,20 @@ class risc(code: Array[Int]) extends Module {
 
   //write back to registerFile
   registerFile.io.wb_data := 0.U
+
   when(deExInstReg.isLoad){
-    printf("We're commiting the data: %x\n", DM.io.rdData)
+    printf("We're loading the data: %d\n", DM.io.rdData)
+    printf("from address: %d\n", deExInstReg.op1 + deExInstReg.imm)
+    printf("to register %d\n", deExInstReg.rd)
     registerFile.io.wb_data := DM.io.rdData
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
-  }.elsewhen(deExInstReg.isJal || deExInstReg.isJalr){
-    registerFile.io.wb_data := PC - 4.U
+  }.elsewhen(deExInstReg.isJal){
+    registerFile.io.wb_data := PCReg2
+  }.elsewhen(deExInstReg.isJalr){
+    registerFile.io.wb_data := PCReg2
+  }.elsewhen(deExInstReg.isAuipc){
+    registerFile.io.wb_data := PCReg2+deExInstReg.imm
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -536,19 +589,27 @@ class risc(code: Array[Int]) extends Module {
 
   //debug output
   io.reg := registerFile.io.registers
-
+  /*
+  printf("Current value of Reg17: %d\n", registerFile.io.registers(17))
+  printf("instruction reg %x\n",instReg)
+  printf("Current value of Reg0: %d\n", registerFile.io.registers(0))
   printf("Current value of Reg1: %d\n", registerFile.io.registers(1))
   printf("Current value of Reg2: %d\n", registerFile.io.registers(2))
   printf("Current value of Reg3: %d\n", registerFile.io.registers(3))
-  //printf("Current value of fn3: %x\n", decodedInst.fn3)
-  //printf("fn3 in MEM stage: %x\n", DM.io.fn3)
+   printf("Current value of Reg10: %d\n", registerFile.io.registers(10))
+   //printf("Current value of fn3: %x\n", decodedInst.fn3)
+   printf("result: %x\n", ALU.io.result)
 
-  printf("Dest reg file %d\n",deExInstReg.rd)
-  printf("source reg1 %d\n",decodedInst.rs1)
-  printf("source reg2 %d\n",decodedInst.rs2)
-  printf("instruction reg %x\n",instReg)
+   printf("Dest reg file %d\n",deExInstReg.rd)
+   printf("source reg1 %d\n",deExInstReg.rs1)
+   printf("source reg2 %d\n",deExInstReg.rs2)
+  printf("source op1 %d\n",deExInstReg.op1)
+  printf("source op2 %d\n",deExInstReg.op2)
+   printf("instruction reg %x\n",instReg)
 
-  printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
-  printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
+   printf("Forwarding rs1  %d\n",hazard.io.forwardRs1)
+   printf("Forwarding rs2  %d\n",hazard.io.forwardRs2)
+*/
+
 
 }

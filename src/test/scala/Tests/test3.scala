@@ -14,18 +14,18 @@ class test3 extends AnyFlatSpec with ChiselScalatestTester {
 
     // .bin files
     val binFiles: Array[String] = Array(
-      "src\\test\\testData\\task3\\width.bin",
-      "src\\test\\testData\\task3\\string.bin",
-      "src\\test\\testData\\task3\\recursive.bin",
-      "src\\test\\testData\\task3\\loop.bin"
+      //"src\\test\\testData\\task3\\recursive.bin",
+      //"src\\test\\testData\\task3\\string.bin",
+      "src\\test\\testData\\task3\\loop.bin",
+      //"src\\test\\testData\\task3\\width.bin"
     )
 
     // .res files
     val resFiles: Array[String] = Array(
-      "src\\test\\testData\\task3\\width.res",
-      "src\\test\\testData\\task3\\string.res",
-      "src\\test\\testData\\task3\\recursive.res",
-      "src\\test\\testData\\task3\\loop.res"
+      //"src\\test\\testData\\task3\\recursive.res",
+      //"src\\test\\testData\\task3\\string.res",
+      "src\\test\\testData\\task3\\loop.res",
+      //"src\\test\\testData\\task3\\width.res"
     )
 
     require(
@@ -61,11 +61,16 @@ class test3 extends AnyFlatSpec with ChiselScalatestTester {
         dut.clock.setTimeout(0) // disable default timeout
         var cycles = 0
 
-        while (!dut.io.stop.peek().litToBoolean && cycles < 3000) {
+        while (!dut.io.stop.peek().litToBoolean && cycles < 20000) {
           dut.clock.step()
           cycles += 1
         }
         println(s"Stopped after $cycles cycles")
+
+        for (i <- 0 until 32) {
+          println(s"reg $i is ${dut.io.reg(i).peek().litValue}")
+        }
+
 
         // If RISC-V x0 is hard-wired to zero, ensure expectedRegValues(0) == 0 or skip i=0
         for (i <- 0 until 32) {

@@ -65,7 +65,14 @@ class test1 extends AnyFlatSpec with ChiselScalatestTester {
 
       test(new risc(instructionInts)) { dut =>
 
-        dut.clock.step(instructionInts.length-6)
+        dut.clock.setTimeout(0) // disable default timeout
+        var cycles = 0
+
+        while (!dut.io.stop.peek().litToBoolean && cycles < 10000) {
+          dut.clock.step()
+          cycles += 1
+        }
+        println(s"Stopped after $cycles cycles")
 
         // If RISC-V x0 is hard-wired to zero, ensure expectedRegValues(0) == 0 or skip i=0
         for (i <- 0 until 32) {

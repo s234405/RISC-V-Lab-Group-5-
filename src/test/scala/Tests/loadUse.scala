@@ -19,10 +19,17 @@ class loadUse extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013,
       0x00000013,
       0x00000013,
-      0x00000013,
       0x00000013
+      ,0x00a00893,0x00000073
     ))) { dut =>
-      dut.clock.step(10)
+      dut.clock.setTimeout(0) // disable default timeout
+      var cycles = 0
+
+      while (!dut.io.stop.peek().litToBoolean && cycles < 10000) {
+        dut.clock.step()
+        cycles += 1
+      }
+      println(s"Stopped after $cycles cycles")
       dut.io.reg(1).expect("h2".U)
       dut.clock.step()
     }

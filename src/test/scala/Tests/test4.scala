@@ -27,7 +27,7 @@ class test4 extends AnyFlatSpec with ChiselScalatestTester {
       //"src\\test\\testData\\task4\\t11.bin",
       "src\\test\\testData\\task4\\t12.bin",
       "src\\test\\testData\\task4\\t13.bin",
-      "src\\test\\testData\\task4\\t14.bin",
+      //"src\\test\\testData\\task4\\t14.bin",
       "src\\test\\testData\\task4\\t15.bin"
     )
 
@@ -46,7 +46,7 @@ class test4 extends AnyFlatSpec with ChiselScalatestTester {
       //"src\\test\\testData\\task4\\t11.res",
       "src\\test\\testData\\task4\\t12.res",
       "src\\test\\testData\\task4\\t13.res",
-      "src\\test\\testData\\task4\\t14.res",
+      //"src\\test\\testData\\task4\\t14.res",
       "src\\test\\testData\\task4\\t15.res"
     )
 

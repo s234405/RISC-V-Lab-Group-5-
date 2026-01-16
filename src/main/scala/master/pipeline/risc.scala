@@ -6,6 +6,8 @@ import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
 import lib.peripherals.MemoryMappedLeds
+import java.io.PrintWriter
+import chisel3.util.experimental.loadMemoryFromFile
 import master.Opcode._
 import master.FMT._
 import master.decInstr
@@ -13,51 +15,85 @@ import master.Fn3Values._
 import master.AluEnum._
 import  master.BranchFn3._
 import master.memFn3._
+
 object risc extends App {
   emitVerilog(
     new risc(Array(
-      0x00000093,  // addi x1, x0, 0
-      0x0ff00113,  // addi x2, x0, 0xFF
-      0x00000193,  // addi x3, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
+      /*
+      0x00001537,  // lui x10, 0x1
+      0x00450513,  // addi x10, x10, 4
+      0x000012b7,  // lui x5, 0x1
+      0x00828293,  // addi x5, x5, 8
+      0x06100313,  // addi x6, x0, 97
+      0x00bec3b7,  // lui x7, 0xbec
+      0xc2038393,  // addi x7, x7, -992
+      0x00bece37,  // lui x28, 0xbec
+      0xc20e0e13,  // addi x28, x28, -992
+      0xfffe0e13,  // addi x28, x28, -1
+      0xfe0e1ee3,  // bne x28, x0, -4
+      0x0062a023,  // sw x6, 0(x5)
+      0x00652023,  // sw x6, 0(x10)
+      0xfe9ff06f   // jal x0, -24
 
-      // Loop1:
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00302023,  // sw x3, 0(x0)
-      0x00000013,  // addi x0, x0, 0
-      0x00108093,  // addi x1, x1, 1
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0xFE20C2E3,  // blt x1, x2, -28 (Loop1)
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00100193,  // addi x3, x0, 1
-      0x00000093,  // addi x1, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
+      */
 
-      // Loop2:
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00302023,  // sw x3, 0(x0)
-      0x00000013,  // addi x0, x0, 0
-      0x00108093,  // addi x1, x1, 1
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0xFE20C2E3,  // blt x1, x2, -28 (Loop2)
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00000193,  // addi x3, x0, 0
-      0x00000093,  // addi x1, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0x00000013,  // addi x0, x0, 0
-      0xF80008E3,  // beq x0, x0, -112 (Loop1)
-      0x00000013,  // addi x0, x0, 0
-      0x00000013   // addi x0, x0, 0
-    )
-    ),
+        0x000012b7, // 0x000: lui  x5, 0x1
+        0x00828293, // 0x004: addi x5, x5, 8
+        0x04800313, // 0x008: addi x6, x0, 72
+        0x00628023, // 0x00c: sb   x6, 0(x5)
+        0x0a4000ef, // 0x010: jal  x1, 0x0a4 (delay10k)
+        0x06500313, // 0x014: addi x6, x0, 101
+        0x00628023, // 0x018: sb   x6, 0(x5)
+        0x098000ef, // 0x01c: jal  x1, 0x098 (delay10k)
+        0x06c00313, // 0x020: addi x6, x0, 108
+        0x00628023, // 0x024: sb   x6, 0(x5)
+        0x08c000ef, // 0x028: jal  x1, 0x08c (delay10k)
+        0x06c00313, // 0x02c: addi x6, x0, 108
+        0x00628023, // 0x030: sb   x6, 0(x5)
+        0x080000ef, // 0x034: jal  x1, 0x080 (delay10k)
+        0x06f00313, // 0x038: addi x6, x0, 111
+        0x00628023, // 0x03c: sb   x6, 0(x5)
+        0x074000ef, // 0x040: jal  x1, 0x074 (delay10k)
+        0x02c00313, // 0x044: addi x6, x0, 44
+        0x00628023, // 0x048: sb   x6, 0(x5)
+        0x068000ef, // 0x04c: jal  x1, 0x068 (delay10k)
+        0x02000313, // 0x050: addi x6, x0, 32
+        0x00628023, // 0x054: sb   x6, 0(x5)
+        0x05c000ef, // 0x058: jal  x1, 0x05c (delay10k)
+        0x07700313, // 0x05c: addi x6, x0, 119
+        0x00628023, // 0x060: sb   x6, 0(x5)
+        0x050000ef, // 0x064: jal  x1, 0x050 (delay10k)
+        0x06f00313, // 0x068: addi x6, x0, 111
+        0x00628023, // 0x06c: sb   x6, 0(x5)
+        0x044000ef, // 0x070: jal  x1, 0x044 (delay10k)
+        0x07200313, // 0x074: addi x6, x0, 114
+        0x00628023, // 0x078: sb   x6, 0(x5)
+        0x038000ef, // 0x07c: jal  x1, 0x038 (delay10k)
+        0x06c00313, // 0x080: addi x6, x0, 108
+        0x00628023, // 0x084: sb   x6, 0(x5)
+        0x02c000ef, // 0x088: jal  x1, 0x02c (delay10k)
+        0x06400313, // 0x08c: addi x6, x0, 100
+        0x00628023, // 0x090: sb   x6, 0(x5)
+        0x020000ef, // 0x094: jal  x1, 0x020 (delay10k)
+        0x02100313, // 0x098: addi x6, x0, 33
+        0x00628023, // 0x09c: sb   x6, 0(x5)
+        0x014000ef, // 0x0a0: jal  x1, 0x014 (delay10k)
+        0x00a00313, // 0x0a4: addi x6, x0, 10
+        0x00628023, // 0x0a8: sb   x6, 0(x5)
+        0x008000ef, // 0x0ac: jal  x1, 0x008 (delay10k)
+
+        0x0000006f, // 0x0b0: jal  x0, 0 (hang)
+
+        0x000023b7, // 0x0b4: lui  x7, 0x2
+        0x71038393, // 0x0b8: addi x7, x7, 1808
+        0xfff38393, // 0x0bc: addi x7, x7, -1
+        0xfe039ee3, // 0x0c0: bne  x7, x0, -4
+        0x00008067  // 0x0c4: jalr x0, x1, 0 (ret)
+
+
+
+
+  )),
     Array("--target-dir", "generated")
   )
 }
@@ -301,61 +337,62 @@ class DataMemory(preload: Array[Int]) extends Module {
     val wrData = Input(UInt (32.W))
     val wrEna = Input(Bool ())
     val done = Output(Bool())
-    // val wrMask = Input(UInt (4.W))
     val LED = Output(UInt(32.W))
+    val uart = UartPins()
   })
-  val size = 1048576 //4096
+  val size =   4096 //1048576
   val index = log2Up(size/4)
   val addrOffset = 2
-  val offset = io.wrAddr(1,0)
   // set all bits 0
+
   val select = WireInit(0.U(4.W))
 
-  val Leds = Module(new MemoryMappedLeds(32))
-  Leds.io.port.write := false.B
-  Leds.io.port.wrData := 0.U
-  Leds.io.port.addr := 0.U
-  Leds.io.port.read := 0.U
-  io.rdData := 0.U
-
+  // Init mem
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
 
-  // ---- Parameters ----
-  val depth     = size / 4                      // number of 32-bit words
-  val indexBits = log2Up(depth)
+
+    // load instruction to Data memory, only for test
+
+    val depth     = size / 4                      // number of 32-bit words
+    val indexBits = log2Up(depth)
 
 
-  // ---- Preload state ----
-  val initIdx  = RegInit(0.U(indexBits.W))
-  val initDone = RegInit(false.B)
-  io.done := initDone
-  val instructions = VecInit(preload.toIndexedSeq.map(_.S(32.W).asUInt))
+    // ---- Preload state ----
+    val initIdx  = RegInit(0.U(indexBits.W))
+    val initDone = RegInit(false.B)
+    io.done := initDone
+    val instructions = VecInit(preload.toIndexedSeq.map(_.S(32.W).asUInt))
 
-  when (!initDone) {
+    when (!initDone) {
 
-    val word = instructions(initIdx)
+      val word = instructions(initIdx)
 
-    // Split the 32-bit word into 4 bytes, LSB at index 0
-    val bytes = Wire(Vec(4, UInt(8.W)))
-    for (i <- 0 until 4) {
+      // Split the 32-bit word into 4 bytes, LSB at index 0
+      val bytes = Wire(Vec(4, UInt(8.W)))
 
+      bytes(0) := word(7,0)
+      bytes(1) := word(15,8)
+      bytes(2) := word(23,16)
+      bytes(3) := word(31,24)
+
+      // Write all 4 bytes
+
+      mem.write(initIdx, bytes, VecInit(Seq.fill(4)(true.B)))
+
+      initIdx := initIdx + 1.U
+      when (initIdx === (preload.length-1).U) {
+        initDone := true.B
+      }
     }
-    bytes(0) := word(7,0)
-    bytes(1) := word(15,8)
-    bytes(2) := word(23,16)
-    bytes(3) := word(31,24)
 
-    // Write all 4 bytes with mask = true
-    mem.write(initIdx, bytes, VecInit(Seq.fill(4)(true.B)))
 
-    //printf("bytes  %d,%d,%d,%d\n",bytes(0),bytes(1),bytes(2),bytes(3))
-    initIdx := initIdx + 1.U
-    when (initIdx === (preload.length-1).U) {
-      initDone := true.B
-    }
-  }
 
-  val rdVec = mem.read(io.wrAddr(index+addrOffset, addrOffset))
+  //io.done := true.B
+  io.rdData := 0.U
+
+
+  val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
+  val offset = io.wrAddr(1, 0)
   val offsetRd = RegNext(io.wrAddr(1,0))
   val fn3Temp = RegNext(io.fn3)
 
@@ -373,22 +410,68 @@ class DataMemory(preload: Array[Int]) extends Module {
     HALFU.U  -> (Fill(16,0.U) ## rdVec(offsetRd+1.U) ## rdVec(offsetRd))
   ))
 
+
+
+
+
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
   for (i <- 0 until 4) {
-    wrVec (i) := io.wrData (i * 8 + 7, i * 8)
+    wrVec (i) := io. wrData (i * 8 + 7, i * 8)
     wrMask (i) := select(i)
   }
+
+
   when(io.wrEna) {
-    //printf("We're saving the data: %x\n", io.wrData)
-    //printf("to  address: %d\n", io.wrAddr)
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
   }
 
   //Leds
-  Leds.io.port.write := io.wrEna
-  Leds.io.port.wrData := io.wrData
+
+  val Leds = Module(new MemoryMappedLeds(32))
+  Leds.io.port.write := false.B
+  Leds.io.port.wrData := 0.U
+  Leds.io.port.addr := 0.U
+  Leds.io.port.read := 0.U
   io.LED := Leds.io.port.rdData
+  when(io.wrAddr === (size + 4).U){
+    Leds.io.port.write := io.wrEna
+    Leds.io.port.wrData := io.wrData
+  }
+
+  // uart
+  val mmUart = MemoryMappedUart(
+    50000000,
+    9600,
+    txBufferDepth = 8,
+    rxBufferDepth = 8
+  )
+  mmUart.io.port.write := false.B
+  mmUart.io.port.wrData := 0.U
+  mmUart.io.port.addr := 0.U
+  mmUart.io.port.read := false.B
+  mmUart.io.port.write := false.B
+  io.uart <> mmUart.io.pins
+  val preUARTread = RegInit(false.B)
+  preUARTread := false.B
+  when((io.wrAddr === (size + 8).U) && io.wrEna){
+    mmUart.io.port.write := io.wrEna
+    mmUart.io.port.wrData := io.wrData
+    printf("UART data: %d", mmUart.io.port.wrData)
+
+    //mmUart.io.port.read := true.B
+    //preUARTread := true.B
+    mmUart.io.port.addr := "h00".U
+  }
+
+  when(io.wrAddr === (size + 12).U){
+    mmUart.io.port.read := true.B
+    preUARTread := true.B
+    mmUart.io.port.addr := "h04".U
+  }
+  when(preUARTread){
+    io.rdData := mmUart.io.port.rdData
+  }
 
 }
 
@@ -405,6 +488,45 @@ class instructionMem(code: Array[Int]) extends Module {
 
   val addrReg = Reg(UInt(32.W))
   addrReg := io.address
+
+
+  val pw = new PrintWriter("program.hex")
+  code.foreach(inst => pw.println(f"$inst%08x"))
+  pw.close()
+
+  val depth = code.length
+  val mem = SyncReadMem(depth, UInt(32.W))
+
+  // Initialize memory from file
+  //loadMemoryFromFile(mem, "program.hex")
+  /*
+  // ---- Preload state ----
+  // ---- Parameters ----
+  val indexBits = log2Up(depth)
+
+  val initIdx  = RegInit(0.U(indexBits.W))
+  val initDone = RegInit(false.B)
+  val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
+
+  when (!initDone) {
+
+    val word = instructions(initIdx)
+
+
+
+
+    // Write all 4 bytes with mask = true
+    mem.write(initIdx, word)
+
+    //printf("bytes  %d,%d,%d,%d\n",bytes(0),bytes(1),bytes(2),bytes(3))
+    initIdx := initIdx + 1.U
+    when (initIdx === (code.length-1).U) {
+      initDone := true.B
+    }
+  }
+
+*/
+  //io.inst := mem.read(io.address(31, 2)) // word-aligned
 
   val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
   io.inst := instructions(addrReg(31, 2))
@@ -481,6 +603,7 @@ class risc(code: Array[Int]) extends Module {
     val reg = Output(Vec(32, UInt(32.W)))
     val LED = Output(UInt(16.W))
     val stop = Output(Bool())
+    val uart = UartPins()
   })
   //init modules
   val instFetch = Module(new instructionFetch(code))
@@ -535,12 +658,7 @@ class risc(code: Array[Int]) extends Module {
   val preResultReg = RegNext(registerFile.io.wb_data)
   val forwardReg1 = RegNext(hazard.io.forwardRs1)
   val forwardReg2 = RegNext(hazard.io.forwardRs2)
-  //stop on ecall
-  val stop = RegInit(false.B)
-  io.stop := stop
-  when(deExInstReg.isEnv){
-    stop := true.B
-  }
+
   //flush
   DM.io.wrEna := decodedInst.isStore && !hazard.io.flush
   when(hazard.io.flush) {
@@ -592,8 +710,18 @@ class risc(code: Array[Int]) extends Module {
   //led output
   io.LED := DM.io.LED(15,0)
 
+  //Uart
+  DM.io.uart <> io.uart
+
   //debug output
   io.reg := registerFile.io.registers
+
+  //stop on ecall
+  val stop = RegInit(false.B)
+  io.stop := stop
+  when(deExInstReg.isEnv){
+    stop := true.B
+  }
 
   /*
   printf("instruction reg %x\n",instReg)

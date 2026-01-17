@@ -64,7 +64,7 @@ class test1 extends AnyFlatSpec with ChiselScalatestTester {
 
       info(s"Running program: $name  (instrs=${instructionInts.length})")
 
-      test(new risc(instructionInts)) { dut =>
+      test(new risc(instructionInts,name)) { dut =>
 
         dut.clock.setTimeout(0) // disable default timeout
         var cycles = 0

@@ -21,7 +21,7 @@ class jumpSwLw extends AnyFlatSpec with ChiselScalatestTester {
       0x00002083  // 0x00000014: lw   x1, 0(x0)
 
       ,0x00a00893,0x00000073
-      ))) { dut =>
+      ),"jumpSwLw")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

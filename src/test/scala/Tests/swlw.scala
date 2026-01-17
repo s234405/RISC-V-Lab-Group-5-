@@ -8,7 +8,20 @@ import org.scalatest.flatspec.AnyFlatSpec
 class swlw extends AnyFlatSpec with ChiselScalatestTester {
   "swlw" should "pass" in {
 
-    test(new risc(Array(0x11100113, 0x00000013, 0x00000013, 0x00000013, 0x0e202fa3 ,0x00000013, 0x00000013, 0x00000013, 0x0ff02083,0x00000013,0x00000013,0x00000013,0x00a00893,0x00000073))) { dut =>
+    test(new risc(Array(0x11100113,
+      0x00000013,
+      0x00000013,
+      0x00000013,
+      0x0e202fa3 ,
+      0x00000013,
+      0x00000013,
+      0x00000013,
+      0x0ff02083,
+      0x00000013,
+      0x00000013,
+      0x00000013,
+      0x00a00893,
+      0x00000073),"swlw")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

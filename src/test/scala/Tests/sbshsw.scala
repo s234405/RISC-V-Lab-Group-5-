@@ -33,7 +33,7 @@ class sbshsw extends AnyFlatSpec with ChiselScalatestTester {
       0x00000073  // 0x50: ecall
 
 
-    ))) { dut =>
+    ),"sbshsw")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

@@ -8,7 +8,7 @@ import lib.peripherals.{MemoryMappedUart, StringStreamer}
 import lib.peripherals.MemoryMappedLeds
 
 import java.io.PrintWriter
-import chisel3.util.experimental.loadMemoryFromFile
+import chisel3.util.experimental.{loadMemoryFromFile, loadMemoryFromFileInline}
 import master.Opcode._
 import master.FMT._
 import master.decInstr
@@ -21,7 +21,7 @@ import java.nio.file.{Files, Paths}
 import java.nio.{ByteBuffer, ByteOrder}
 
 object risc extends App {
-
+  val name = "serial_echo"
   val raw = Files.readAllBytes(Paths.get("serial_echo.bin"))
 
   val pad = (4 - (raw.length % 4)) % 4
@@ -37,7 +37,7 @@ object risc extends App {
   var ip = 0
   while (progBB.hasRemaining) { instructionInts(ip) = progBB.getInt(); ip += 1 }
 
-  emitVerilog(new risc(instructionInts
+  emitVerilog(new risc(instructionInts, name
 
     /*Array(
 
@@ -302,7 +302,7 @@ class registerFile extends Module {
   }
 }
 
-class DataMemory(preload: Array[Int]) extends Module {
+class DataMemory(preload: Array[Int], name:String) extends Module {
   val io = IO(new Bundle {
     val rdAddr = Input(UInt (32.W))
     val rdData = Output(UInt (32.W))
@@ -456,7 +456,7 @@ class DataMemory(preload: Array[Int]) extends Module {
 
 }
 
-class instructionMem(code: Array[Int]) extends Module {
+class instructionMem(code: Array[Int], name:String) extends Module {
   val io = IO(new Bundle{
     val address = Input(UInt(32.W))
     val ack = Output(Bool())
@@ -466,48 +466,17 @@ class instructionMem(code: Array[Int]) extends Module {
   val addrReg = Reg(UInt(32.W))
   addrReg := io.address
 
-
-  val pw = new PrintWriter("program.hex")
-  code.foreach(inst => pw.println(f"$inst%08x"))
-  pw.close()
-
   val depth = code.length
   val mem = SyncReadMem(depth, UInt(32.W))
 
   // Initialize memory from file
-  //loadMemoryFromFile(mem, "program.hex")
-  /*
-  // ---- Preload state ----
-  // ---- Parameters ----
-  val indexBits = log2Up(depth)
+  loadMemoryFromFileInline(mem, "hexfiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
 
-  val initIdx  = RegInit(0.U(indexBits.W))
-  val initDone = RegInit(false.B)
-  val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
-
-  when (!initDone) {
-
-    val word = instructions(initIdx)
-
-
-
-
-    // Write all 4 bytes with mask = true
-    mem.write(initIdx, word)
-
-    //printf("bytes  %d,%d,%d,%d\n",bytes(0),bytes(1),bytes(2),bytes(3))
-    initIdx := initIdx + 1.U
-    when (initIdx === (code.length-1).U) {
-      initDone := true.B
-    }
-  }
-
-*/
   //io.inst := mem.read(io.address(31, 2)) // word-aligned
 
-  val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
-  io.inst := instructions(addrReg(31, 2))
-
+  //val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
+  //io.inst := instructions(addrReg(31, 2))
+  io.inst := mem(io.address(31, 2))
   // first instruction shall not be executed (random address register)
   val firstReg = RegInit(true.B)
   firstReg := false.B
@@ -529,7 +498,7 @@ class PcCounter extends Module {
 
 }
 
-class instructionFetch(code: Array[Int]) extends Module {
+class instructionFetch(code: Array[Int], name: String) extends Module {
   val io = IO(new Bundle {
     val branchEna = Input(Bool())
     val branchAddr = Input(UInt (32.W))
@@ -539,7 +508,7 @@ class instructionFetch(code: Array[Int]) extends Module {
     val ack = Output(Bool())
     val PCVal = Output(UInt(32.W))
   })
-  val instMem = Module(new instructionMem(code))
+  val instMem = Module(new instructionMem(code, name))
   val PC = Module(new PcCounter)
   PC.io.branchEna := io.branchEna
   PC.io.branchAddr := io.branchAddr
@@ -575,18 +544,23 @@ class hazard extends Module{
 
 }
 
-class risc(code: Array[Int]) extends Module {
+class risc(code: Array[Int],name: String) extends Module {
   val io = IO(new Bundle {
     val reg = Output(Vec(32, UInt(32.W)))
     val LED = Output(UInt(16.W))
     val stop = Output(Bool())
     val uart = UartPins()
   })
+  //create hex file for mem init
+  val pw = new PrintWriter("hexfiles/" + name + ".hex")
+  code.foreach(inst => pw.println(f"$inst%08x"))
+  pw.close()
+
   //init modules
-  val instFetch = Module(new instructionFetch(code))
+  val instFetch = Module(new instructionFetch(code, name))
   val decode = Module(new Decode)
   val registerFile = Module(new registerFile)
-  val DM = Module(new DataMemory(code))
+  val DM = Module(new DataMemory(code, name))
   val ALU = Module(new ALU)
   val hazard = Module(new hazard)
 

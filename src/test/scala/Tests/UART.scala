@@ -78,7 +78,7 @@ class UART extends AnyFlatSpec with ChiselScalatestTester {
       0xfe0e1ee3, // 0x0c0: bne  x28, x0, -4
       0x00008067  // 0x0c4: jalr x0, x1, 0
 
-    ))) { dut =>
+    ),"UART")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

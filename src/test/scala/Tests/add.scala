@@ -8,7 +8,15 @@ import org.scalatest.flatspec.AnyFlatSpec
 class add extends AnyFlatSpec with ChiselScalatestTester {
   "add" should "pass" in {
 
-    test(new risc(Array(0x11100193, 0x22200113, 0x00000013, 0x00000013, 0x00000013, 0x002180b3,0x00a00893,0x00000073))) { dut =>
+    test(new risc(Array(0x11100193,
+      0x22200113,
+      0x00000013,
+      0x00000013,
+      0x00000013,
+      0x002180b3,
+      0x00a00893,
+      0x00000073),
+      "add")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

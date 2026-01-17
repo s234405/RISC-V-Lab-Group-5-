@@ -76,7 +76,7 @@ class selftest2 extends AnyFlatSpec with ChiselScalatestTester {
 
 
 
-    ))) { dut =>
+    ),"selftest2")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

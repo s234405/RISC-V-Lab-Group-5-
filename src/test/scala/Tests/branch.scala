@@ -17,7 +17,7 @@ class branch extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013,  // addi x0, x0, 0 (nop)
       0x00000013   // addi x0, x0, 0 (nop)
       ,0x00a00893,0x00000073
-      ))) { dut =>
+      ),"branch")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 

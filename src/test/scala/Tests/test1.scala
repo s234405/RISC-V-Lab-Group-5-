@@ -14,24 +14,25 @@ class test1 extends AnyFlatSpec with ChiselScalatestTester {
 
     // .bin files (paths start at \src\...)
     val binFiles: Array[String] = Array(
-      "src\\test\\testData\\task1\\addlarge.bin",
-      "src\\test\\testData\\task1\\addneg.bin",
-      "src\\test\\testData\\task1\\addpos.bin",
-      "src\\test\\testData\\task1\\bool.bin",
-      "src\\test\\testData\\task1\\set.bin",
-      "src\\test\\testData\\task1\\shift.bin",
-      "src\\test\\testData\\task1\\shift2.bin"
+      "src/test/testData/task1/addlarge.bin",
+      "src/test/testData/task1/addneg.bin",
+      "src/test/testData/task1/addpos.bin",
+      "src/test/testData/task1/bool.bin",
+      "src/test/testData/task1/set.bin",
+      "src/test/testData/task1/shift.bin",
+      "src/test/testData/task1/shift2.bin"
     )
 
     // .res files
     val resFiles: Array[String] = Array(
-      "src\\test\\testData\\task1\\addlarge.res",
-      "src\\test\\testData\\task1\\addneg.res",
-      "src\\test\\testData\\task1\\addpos.res",
-      "src\\test\\testData\\task1\\bool.res",
-      "src\\test\\testData\\task1\\set.res",
-      "src\\test\\testData\\task1\\shift.res",
-      "src\\test\\testData\\task1\\shift2.res"
+      "src/test/testData/task1/addlarge.res",
+      "src/test/testData/task1/addneg.res",
+      "src/test/testData/task1/addpos.res",
+      "src/test/testData/task1/bool.res",
+      "src/test/testData/task1/set.res",
+      "src/test/testData/task1/shift.res",
+      "src/test/testData/task1/shift2.res"
+
     )
 
     require(

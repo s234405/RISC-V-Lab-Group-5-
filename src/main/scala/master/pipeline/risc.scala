@@ -22,7 +22,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 
 object risc extends App {
 
-  val raw = Files.readAllBytes(Paths.get("bootloader.bin"))
+  val raw = Files.readAllBytes(Paths.get("serial_echo.bin"))
 
   val pad = (4 - (raw.length % 4)) % 4
   val progBytes =
@@ -31,7 +31,7 @@ object risc extends App {
 
 
   // --- Load program: decode 32-bit words (LITTLE-ENDIAN) ---
-  require(progBytes.length % 4 == 0, s"[bootloader] .bin size ${progBytes.length} not multiple of 4")
+  require(progBytes.length % 4 == 0, s"[serial_echo] .bin size ${progBytes.length} not multiple of 4")
   val progBB = ByteBuffer.wrap(progBytes).order(ByteOrder.LITTLE_ENDIAN)
   val instructionInts = Array.fill(progBytes.length / 4)(0)
   var ip = 0

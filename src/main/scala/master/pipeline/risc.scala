@@ -325,7 +325,6 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
   // Init mem
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
 
-
     //remove for synthesis vvvv
     // load instruction to Data memory, only for test
 
@@ -364,7 +363,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
 
 
 //remove for test vvv
-  //io.done := true.B
+  io.done := true.B
 
 
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
@@ -470,7 +469,7 @@ class instructionMem(code: Array[Int], name:String) extends Module {
   val mem = SyncReadMem(depth, UInt(32.W))
 
   // Initialize memory from file
-  loadMemoryFromFileInline(mem, "hexfiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
+  loadMemoryFromFileInline(mem, "hexFiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
 
   //io.inst := mem.read(io.address(31, 2)) // word-aligned
 
@@ -552,7 +551,7 @@ class risc(code: Array[Int],name: String) extends Module {
     val uart = UartPins()
   })
   //create hex file for mem init
-  val pw = new PrintWriter("hexfiles/" + name + ".hex")
+  val pw = new PrintWriter("hexFiles/" + name + ".hex")
   code.foreach(inst => pw.println(f"$inst%08x"))
   pw.close()
 

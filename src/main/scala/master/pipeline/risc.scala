@@ -6,6 +6,7 @@ import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
 import lib.peripherals.MemoryMappedLeds
+
 import java.io.PrintWriter
 import chisel3.util.experimental.loadMemoryFromFile
 import master.Opcode._
@@ -13,87 +14,60 @@ import master.FMT._
 import master.decInstr
 import master.Fn3Values._
 import master.AluEnum._
-import  master.BranchFn3._
+import master.BranchFn3._
 import master.memFn3._
 
+import java.nio.file.{Files, Paths}
+import java.nio.{ByteBuffer, ByteOrder}
+
 object risc extends App {
-  emitVerilog(
-    new risc(Array(
-      /*
-      0x00001537,  // lui x10, 0x1
-      0x00450513,  // addi x10, x10, 4
-      0x000012b7,  // lui x5, 0x1
-      0x00828293,  // addi x5, x5, 8
-      0x06100313,  // addi x6, x0, 97
-      0x00bec3b7,  // lui x7, 0xbec
-      0xc2038393,  // addi x7, x7, -992
-      0x00bece37,  // lui x28, 0xbec
-      0xc20e0e13,  // addi x28, x28, -992
-      0xfffe0e13,  // addi x28, x28, -1
-      0xfe0e1ee3,  // bne x28, x0, -4
-      0x0062a023,  // sw x6, 0(x5)
-      0x00652023,  // sw x6, 0(x10)
-      0xfe9ff06f   // jal x0, -24
 
-      */
+  val raw = Files.readAllBytes(Paths.get("bootloader.bin"))
 
-        0x000012b7, // 0x000: lui  x5, 0x1
-        0x00828293, // 0x004: addi x5, x5, 8
-        0x04800313, // 0x008: addi x6, x0, 72
-        0x00628023, // 0x00c: sb   x6, 0(x5)
-        0x0a4000ef, // 0x010: jal  x1, 0x0a4 (delay10k)
-        0x06500313, // 0x014: addi x6, x0, 101
-        0x00628023, // 0x018: sb   x6, 0(x5)
-        0x098000ef, // 0x01c: jal  x1, 0x098 (delay10k)
-        0x06c00313, // 0x020: addi x6, x0, 108
-        0x00628023, // 0x024: sb   x6, 0(x5)
-        0x08c000ef, // 0x028: jal  x1, 0x08c (delay10k)
-        0x06c00313, // 0x02c: addi x6, x0, 108
-        0x00628023, // 0x030: sb   x6, 0(x5)
-        0x080000ef, // 0x034: jal  x1, 0x080 (delay10k)
-        0x06f00313, // 0x038: addi x6, x0, 111
-        0x00628023, // 0x03c: sb   x6, 0(x5)
-        0x074000ef, // 0x040: jal  x1, 0x074 (delay10k)
-        0x02c00313, // 0x044: addi x6, x0, 44
-        0x00628023, // 0x048: sb   x6, 0(x5)
-        0x068000ef, // 0x04c: jal  x1, 0x068 (delay10k)
-        0x02000313, // 0x050: addi x6, x0, 32
-        0x00628023, // 0x054: sb   x6, 0(x5)
-        0x05c000ef, // 0x058: jal  x1, 0x05c (delay10k)
-        0x07700313, // 0x05c: addi x6, x0, 119
-        0x00628023, // 0x060: sb   x6, 0(x5)
-        0x050000ef, // 0x064: jal  x1, 0x050 (delay10k)
-        0x06f00313, // 0x068: addi x6, x0, 111
-        0x00628023, // 0x06c: sb   x6, 0(x5)
-        0x044000ef, // 0x070: jal  x1, 0x044 (delay10k)
-        0x07200313, // 0x074: addi x6, x0, 114
-        0x00628023, // 0x078: sb   x6, 0(x5)
-        0x038000ef, // 0x07c: jal  x1, 0x038 (delay10k)
-        0x06c00313, // 0x080: addi x6, x0, 108
-        0x00628023, // 0x084: sb   x6, 0(x5)
-        0x02c000ef, // 0x088: jal  x1, 0x02c (delay10k)
-        0x06400313, // 0x08c: addi x6, x0, 100
-        0x00628023, // 0x090: sb   x6, 0(x5)
-        0x020000ef, // 0x094: jal  x1, 0x020 (delay10k)
-        0x02100313, // 0x098: addi x6, x0, 33
-        0x00628023, // 0x09c: sb   x6, 0(x5)
-        0x014000ef, // 0x0a0: jal  x1, 0x014 (delay10k)
-        0x00a00313, // 0x0a4: addi x6, x0, 10
-        0x00628023, // 0x0a8: sb   x6, 0(x5)
-        0x008000ef, // 0x0ac: jal  x1, 0x008 (delay10k)
+  val pad = (4 - (raw.length % 4)) % 4
+  val progBytes =
+    if (pad == 0) raw
+    else java.util.Arrays.copyOf(raw, raw.length + pad)
 
-        0x0000006f, // 0x0b0: jal  x0, 0 (hang)
 
-        0x000023b7, // 0x0b4: lui  x7, 0x2
-        0x71038393, // 0x0b8: addi x7, x7, 1808
-        0xfff38393, // 0x0bc: addi x7, x7, -1
-        0xfe039ee3, // 0x0c0: bne  x7, x0, -4
-        0x00008067  // 0x0c4: jalr x0, x1, 0 (ret)
+  // --- Load program: decode 32-bit words (LITTLE-ENDIAN) ---
+  require(progBytes.length % 4 == 0, s"[bootloader] .bin size ${progBytes.length} not multiple of 4")
+  val progBB = ByteBuffer.wrap(progBytes).order(ByteOrder.LITTLE_ENDIAN)
+  val instructionInts = Array.fill(progBytes.length / 4)(0)
+  var ip = 0
+  while (progBB.hasRemaining) { instructionInts(ip) = progBB.getInt(); ip += 1 }
+
+  emitVerilog(new risc(instructionInts
+
+    /*Array(
+
+      0x000012b7, // 0x000: lui  x5, 0x1
+      0x00828293, // 0x004: addi x5, x5, 8
+      0x000013b7, // 0x008: lui  x7, 0x1
+      0x00c38393, // 0x00c: addi x7, x7, 12
+      0x014000ef, // 0x010: jal  x1, wait_ready1
+      0x00028303, // 0x014: lb   x6, 0(x5)
+      0x01c000ef, // 0x018: jal  x1, wait_ready2
+      0x00628023, // 0x01c: sb   x6, 0(x5)
+
+      0xfe1ff06f, // 0x020: jal  x0, _start (hang/loop)
+
+      0x0003ce03, // 0x024: lbu  x28, 0(x7)
+      0x002e7e13, // 0x028: andi x28, x28, 2
+      0xfe0e0ce3, // 0x02c: beq  x28, x0, -8
+      0x00008067, // 0x030: jalr x0, x1, 0
+
+      0x0003ce03, // 0x034: lbu  x28, 0(x7)
+      0x001e7e13, // 0x038: andi x28, x28, 1
+      0xfe0e0ce3, // 0x03c: beq  x28, x0, -8
+      0x00008067  // 0x040: jalr x0, x1, 0
 
 
 
 
-  )),
+
+
+  )*/),
     Array("--target-dir", "generated")
   )
 }
@@ -336,6 +310,7 @@ class DataMemory(preload: Array[Int]) extends Module {
     val fn3 = Input(UInt (3.W))
     val wrData = Input(UInt (32.W))
     val wrEna = Input(Bool ())
+    val rdEna = Input(Bool())
     val done = Output(Bool())
     val LED = Output(UInt(32.W))
     val uart = UartPins()
@@ -351,6 +326,7 @@ class DataMemory(preload: Array[Int]) extends Module {
   val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
 
 
+    //remove for synthesis vvvv
     // load instruction to Data memory, only for test
 
     val depth     = size / 4                      // number of 32-bit words
@@ -378,17 +354,17 @@ class DataMemory(preload: Array[Int]) extends Module {
       // Write all 4 bytes
 
       mem.write(initIdx, bytes, VecInit(Seq.fill(4)(true.B)))
-
       initIdx := initIdx + 1.U
       when (initIdx === (preload.length-1).U) {
         initDone := true.B
       }
     }
 
+  //Remove ^^^^
 
 
+//remove for test vvv
   //io.done := true.B
-  io.rdData := 0.U
 
 
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
@@ -411,16 +387,23 @@ class DataMemory(preload: Array[Int]) extends Module {
   ))
 
 
-
-
-
   val wrVec = Wire (Vec (4, UInt (8.W)))
   val wrMask = Wire (Vec (4, Bool ()))
   for (i <- 0 until 4) {
-    wrVec (i) := io. wrData (i * 8 + 7, i * 8)
     wrMask (i) := select(i)
+    wrVec(i) := 0.U
   }
+  when(io.fn3 === BYTE.U){
+    wrVec (offset) := io.wrData(7,0)
 
+  }.elsewhen(io.fn3 === HALF.U){
+    wrVec (offset) := io.wrData(7,0)
+    wrVec (offset+1.U) := io.wrData(15,8)
+  }.otherwise{
+    for (i <- 0 until 4) {
+      wrVec(i) := io.wrData(i * 8 + 7, i * 8)
+    }
+  }
 
   when(io.wrEna) {
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
@@ -454,19 +437,17 @@ class DataMemory(preload: Array[Int]) extends Module {
   io.uart <> mmUart.io.pins
   val preUARTread = RegInit(false.B)
   preUARTread := false.B
-  when((io.wrAddr === (size + 8).U) && io.wrEna){
+  when((io.wrAddr === (size + 8).U)){
     mmUart.io.port.write := io.wrEna
     mmUart.io.port.wrData := io.wrData
-    printf("UART data: %d", mmUart.io.port.wrData)
-
-    //mmUart.io.port.read := true.B
-    //preUARTread := true.B
+    mmUart.io.port.read := io.rdEna
+    preUARTread := io.rdEna
     mmUart.io.port.addr := "h00".U
   }
 
   when(io.wrAddr === (size + 12).U){
-    mmUart.io.port.read := true.B
-    preUARTread := true.B
+    mmUart.io.port.read := io.rdEna
+    preUARTread := io.rdEna
     mmUart.io.port.addr := "h04".U
   }
   when(preUARTread){
@@ -474,10 +455,6 @@ class DataMemory(preload: Array[Int]) extends Module {
   }
 
 }
-
-
-
-
 
 class instructionMem(code: Array[Int]) extends Module {
   val io = IO(new Bundle{
@@ -661,6 +638,7 @@ class risc(code: Array[Int]) extends Module {
 
   //flush
   DM.io.wrEna := decodedInst.isStore && !hazard.io.flush
+  DM.io.rdEna := decodedInst.isLoad && !hazard.io.flush
   when(hazard.io.flush) {
     //deExInstReg.op1 := 0.U
     //deExInstReg.op2 := 0.U

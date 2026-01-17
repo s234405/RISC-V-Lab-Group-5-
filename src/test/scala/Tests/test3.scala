@@ -14,18 +14,18 @@ class test3 extends AnyFlatSpec with ChiselScalatestTester {
 
     // .bin files
     val binFiles: Array[String] = Array(
-      //"src\\test\\testData\\task3\\recursive.bin",
-      "src\\test\\testData\\task3\\string.bin",
-      //"src\\test\\testData\\task3\\loop.bin",
-      //"src\\test\\testData\\task3\\width.bin"
+      "src/test/testData/task3/recursive.bin",
+      "src/test/testData/task3/string.bin",
+      "src/test/testData/task3/loop.bin"
+      // "src/test/testData/task3/width.bin"
     )
 
     // .res files
     val resFiles: Array[String] = Array(
-      //"src\\test\\testData\\task3\\recursive.res",
-      "src\\test\\testData\\task3\\string.res",
-      //"src\\test\\testData\\task3\\loop.res",
-      //"src\\test\\testData\\task3\\width.res"
+      "src/test/testData/task3/recursive.res",
+      "src/test/testData/task3/string.res",
+      "src/test/testData/task3/loop.res"
+      // "src/test/testData/task3/width.res"
     )
 
     require(

@@ -11,20 +11,18 @@ import java.nio.{ByteBuffer, ByteOrder}
 class test2 extends AnyFlatSpec with ChiselScalatestTester {
   "task2 programs" should "run all .bin/.res pairs" in {
 
-    // .bin files (paths start at \src\...)
-
     // .bin files
     val binFiles: Array[String] = Array(
-      "src\\test\\testData\\task2\\branchcnt.bin",
-      "src\\test\\testData\\task2\\branchmany.bin",
-      "src\\test\\testData\\task2\\branchtrap.bin"
+      "src/test/testData/task2/branchcnt.bin",
+      "src/test/testData/task2/branchmany.bin",
+      "src/test/testData/task2/branchtrap.bin"
     )
 
     // .res files
     val resFiles: Array[String] = Array(
-      "src\\test\\testData\\task2\\branchcnt.res",
-      "src\\test\\testData\\task2\\branchmany.res",
-      "src\\test\\testData\\task2\\branchtrap.res"
+      "src/test/testData/task2/branchcnt.res",
+      "src/test/testData/task2/branchmany.res",
+      "src/test/testData/task2/branchtrap.res"
     )
 
     require(

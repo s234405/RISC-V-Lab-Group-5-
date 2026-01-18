@@ -363,7 +363,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
 
 
 //remove for test vvv
-  io.done := true.B
+  //io.done := true.B
 
 
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))

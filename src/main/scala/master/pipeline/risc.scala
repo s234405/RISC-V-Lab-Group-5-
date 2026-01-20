@@ -31,7 +31,7 @@ object risc extends App {
 
 
   // --- Load program: decode 32-bit words (LITTLE-ENDIAN) ---
-  require(progBytes.length % 4 == 0, s"[serial_echo] .bin size ${progBytes.length} not multiple of 4")
+  require(progBytes.length % 4 == 0, s"[${name}] .bin size ${progBytes.length} not multiple of 4")
   val progBB = ByteBuffer.wrap(progBytes).order(ByteOrder.LITTLE_ENDIAN)
   val instructionInts = Array.fill(progBytes.length / 4)(0)
   var ip = 0
@@ -460,23 +460,77 @@ class instructionMem(code: Array[Int], name:String) extends Module {
     val address = Input(UInt(32.W))
     val ack = Output(Bool())
     val inst = Output(UInt(32.W))
+    val rdAddr = Input(UInt (32.W))
+    val wrAddr = Input(UInt (32.W))
+    val fn3 = Input(UInt (3.W))
+    val wrData = Input(UInt (32.W))
+    val wrEna = Input(Bool ())
   })
 
-  val addrReg = Reg(UInt(32.W))
-  addrReg := io.address
 
   val depth = code.length
-  val mem = SyncReadMem(depth, UInt(32.W))
+  val memROM = SyncReadMem(depth, UInt(32.W))
 
   // Initialize memory from file
-  loadMemoryFromFileInline(mem, "hexFiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
+  loadMemoryFromFileInline(memROM, "hexFiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
 
-  //io.inst := mem.read(io.address(31, 2)) // word-aligned
+  //io.inst := memROM(io.address(31,2))
+  val addrReg = Reg(UInt(32.W))
 
-  //val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
-  //io.inst := instructions(addrReg(31, 2))
-  io.inst := mem(io.address(31, 2))
-  // first instruction shall not be executed (random address register)
+  addrReg := io.address
+  val instructions = VecInit(code.toIndexedSeq.map(_.S(32.W).asUInt))
+
+  io.inst := instructions(addrReg(31, 2))
+  //printf("instruction: %x\n", io.inst)
+
+  //new mem
+  val select = WireInit(0.U(4.W))
+
+  val size = 4096
+  val mem = SyncReadMem(size/4, Vec(4,UInt(8.W)), SyncReadMem.WriteFirst)
+  val index = log2Up(size/4)
+  val addrOffset = 2
+  val rdVec = mem.read(io.rdAddr(31,2))
+  val offset = io.wrAddr(1, 0)
+  val offsetRd = RegNext(io.wrAddr(1,0))
+  val fn3Temp = RegNext(io.fn3)
+  switch(io.fn3){
+    is(BYTE.U){ select := 1.U << offset }
+    is(HALF.U){ select := 3.U << offset }
+    is(WORD.U){ select := "b1111".U }
+  }
+  when(io.address(31,2).asSInt > depth.S){
+    //printf("special instruction: %x\n", io.inst)
+    //printf("from addrs: %x\n",  io.address)
+    io.inst := (rdVec(3) ## rdVec(2) ## rdVec(1) ## rdVec(0))
+
+  }
+
+  val wrVec = Wire (Vec (4, UInt (8.W)))
+  val wrMask = Wire (Vec (4, Bool ()))
+  for (i <- 0 until 4) {
+    wrMask (i) := select(i)
+    wrVec(i) := 0.U
+  }
+  when(io.fn3 === BYTE.U){
+    wrVec (offset) := io.wrData(7,0)
+  }.elsewhen(io.fn3 === HALF.U){
+    wrVec (offset) := io.wrData(7,0)
+    wrVec (offset+1.U) := io.wrData(15,8)
+  }.otherwise{
+    for (i <- 0 until 4) {
+      wrVec(i) := io.wrData(i * 8 + 7, i * 8)
+    }
+  }
+
+  when(io.wrEna) {
+    mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
+    //printf("writing: %x %x %x %x\n",  wrVec(0), wrVec(1), wrVec(2), wrVec(3))
+    //printf("to addrs: %x\n",  io.wrAddr)
+
+  }
+
+  // first instruction shall not be executed
   val firstReg = RegInit(true.B)
   firstReg := false.B
   io.ack := !(firstReg || false.B)
@@ -506,6 +560,11 @@ class instructionFetch(code: Array[Int], name: String) extends Module {
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
     val PCVal = Output(UInt(32.W))
+
+    val wrAddr = Input(UInt (32.W))
+    val fn3 = Input(UInt (3.W))
+    val wrData = Input(UInt (32.W))
+    val wrEna = Input(Bool ())
   })
   val instMem = Module(new instructionMem(code, name))
   val PC = Module(new PcCounter)
@@ -517,6 +576,15 @@ class instructionFetch(code: Array[Int], name: String) extends Module {
   io.PCVal := PC.io.PC
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
+
+  instMem.io.wrAddr := io.wrAddr
+  instMem.io.rdAddr := PC.io.PC
+  instMem.io.fn3 := io.fn3
+  instMem.io.wrData := io.wrData
+  instMem.io.wrEna := io.wrEna
+
+
+
 }
 
 class hazard extends Module{
@@ -589,6 +657,11 @@ class risc(code: Array[Int],name: String) extends Module {
   // DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedInst.op2
 
+  //instruction mem write
+  instFetch.io.wrAddr := decodedInst.op1 + decodedInst.imm
+  instFetch.io.wrData := decodedInst.op2
+  instFetch.io.fn3 := decodedInst.fn3
+
 
   // execute stage
   val deExInstReg = RegInit(decode.io.decodedInstr) //pipeline reg for Decode / execute stage
@@ -611,6 +684,7 @@ class risc(code: Array[Int],name: String) extends Module {
 
   //flush
   DM.io.wrEna := decodedInst.isStore && !hazard.io.flush
+  instFetch.io.wrEna := decodedInst.isStore && !hazard.io.flush
   DM.io.rdEna := decodedInst.isLoad && !hazard.io.flush
   when(hazard.io.flush) {
     //deExInstReg.op1 := 0.U

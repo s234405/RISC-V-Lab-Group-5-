@@ -21,8 +21,8 @@ import java.nio.file.{Files, Paths}
 import java.nio.{ByteBuffer, ByteOrder}
 
 object risc extends App {
-  val name = "serial_echo"
-  val raw = Files.readAllBytes(Paths.get("serial_echo.bin"))
+  val name = "bootloader"
+  val raw = Files.readAllBytes(Paths.get("bootloader.bin"))
 
   val pad = (4 - (raw.length % 4)) % 4
   val progBytes =
@@ -178,7 +178,7 @@ class Decode extends Module {
     }
 
     is(J.id.U) {
-      io.decodedInstr.imm := (Fill(11, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21) ## 0.U(1.W))
+      io.decodedInstr.imm := (Fill(12, io.instruction(31)) ## io.instruction(19, 12) ## io.instruction(20) ## io.instruction(30, 21) ## 0.U(1.W))
     }
   }
 }

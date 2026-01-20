@@ -5,33 +5,32 @@ import chiseltest._
 import master.pipeline.risc
 import org.scalatest.flatspec.AnyFlatSpec
 
-class jump extends AnyFlatSpec with ChiselScalatestTester {
-  "jump" should "pass" in {
+class jumpBack extends AnyFlatSpec with ChiselScalatestTester {
+  "jumpBack" should "pass" in {
 
     test(new risc(Array(
-      0x00000093,  // addi x1, x0, 0
-      0x00C0016F,  // jal x2, 12 (jump)
-      0x00100093,  // addi x1, x0, 1
-      0x00100093,  // addi x1, x0, 1
-
-      // jump:
-      0x00100093,  // addi x1, x0, 1
-      0x00000013,  // addi x0, x0, 0 (nop)
-      0x00000013,  // addi x0, x0, 0 (nop)jump
+      0x00000093,
+      0x00a00113,
+      0x00000013,
+      0x00000013,
+      0x00000013,
+      0x00108093,
+      0x00208463,
+      0xff9ff06f,
       0x00000013,  // addi x0, x0, 0 (nop)
       0x00000013,  // addi x0, x0, 0 (nop)
       0x00000013  // addi x0, x0, 0 (nop)
       ,0x00a00893,0x00000073
-      ),"jump")) { dut =>
+      ),"jumpBack")) { dut =>
       dut.clock.setTimeout(0) // disable default timeout
       var cycles = 0
 
-      while (!dut.io.stop.peek().litToBoolean && cycles < 10000) {
+      while (!dut.io.stop.peek().litToBoolean && cycles < 100) {
         dut.clock.step()
         cycles += 1
       }
       println(s"Stopped after $cycles cycles")
-      dut.io.reg(1).expect("h1".U)
+      dut.io.reg(1).expect("ha".U)
       dut.clock.step()
     }
   }

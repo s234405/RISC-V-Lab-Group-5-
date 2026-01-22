@@ -291,7 +291,7 @@ module instructionMem(
   wire [7:0] _GEN_221 = io_fn3 == 3'h1 ? _GEN_217 : io_wrData[15:8]; // @[instructionFetch.scala 67:32 72:16]
   wire [7:0] _GEN_222 = io_fn3 == 3'h1 ? _GEN_218 : io_wrData[23:16]; // @[instructionFetch.scala 67:32 72:16]
   wire [7:0] _GEN_223 = io_fn3 == 3'h1 ? _GEN_219 : io_wrData[31:24]; // @[instructionFetch.scala 67:32 72:16]
-  reg  firstReg; // @[instructionFetch.scala 84:25]
+  reg  firstReg; // @[instructionFetch.scala 83:25]
   assign mem_0_rdVec_en = mem_0_rdVec_en_pipe_0;
   assign mem_0_rdVec_addr = mem_0_rdVec_addr_pipe_0;
   assign mem_0_rdVec_data = mem_0[mem_0_rdVec_addr]; // @[instructionFetch.scala 40:24]
@@ -320,7 +320,7 @@ module instructionMem(
   assign mem_3_MPORT_addr = io_wrAddr[11:2];
   assign mem_3_MPORT_mask = select[3];
   assign mem_3_MPORT_en = io_wrEna;
-  assign io_ack = ~firstReg; // @[instructionFetch.scala 86:13]
+  assign io_ack = ~firstReg; // @[instructionFetch.scala 85:13]
   assign io_inst = $signed(_T_4) > 30'shc8 ? _io_inst_T_4 : _GEN_199; // @[instructionFetch.scala 33:11 52:42 55:13]
   always @(posedge clock) begin
     if (mem_0_MPORT_en & mem_0_MPORT_mask) begin
@@ -352,7 +352,7 @@ module instructionMem(
       mem_3_rdVec_addr_pipe_0 <= io_rdAddr[11:2];
     end
     addrReg <= io_address; // @[instructionFetch.scala 30:11]
-    firstReg <= reset; // @[instructionFetch.scala 84:{25,25} 85:12]
+    firstReg <= reset; // @[instructionFetch.scala 83:{25,25} 84:12]
   end
 // Register and memory initialization
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
@@ -438,7 +438,8 @@ module PcCounter(
   input         io_branchEna,
   input  [31:0] io_branchAddr,
   input         io_AddrSet,
-  output [31:0] io_PC
+  output [31:0] io_PC,
+  output [31:0] io_PcReg
 );
 `ifdef RANDOMIZE_REG_INIT
   reg [31:0] _RAND_0;
@@ -449,6 +450,7 @@ module PcCounter(
   wire [31:0] _PcNext_T_4 = io_AddrSet ? io_branchAddr : _PcNext_T_3; // @[instructionFetch.scala 98:48]
   wire [31:0] _PcNext_T_6 = PcReg + 32'h4; // @[instructionFetch.scala 98:104]
   assign io_PC = io_branchEna ? _PcNext_T_4 : _PcNext_T_6; // @[instructionFetch.scala 98:31]
+  assign io_PcReg = PcReg; // @[instructionFetch.scala 101:12]
   always @(posedge clock) begin
     if (reset) begin // @[instructionFetch.scala 97:22]
       PcReg <= 32'hfffffffc; // @[instructionFetch.scala 97:22]
@@ -516,29 +518,30 @@ module instructionFetch(
   input         io_AddrSet,
   output [31:0] io_inst,
   output        io_ack,
-  output [31:0] io_PCVal,
+  output [31:0] io_PcReg,
   input  [31:0] io_wrAddr,
   input  [2:0]  io_fn3,
   input  [31:0] io_wrData,
   input         io_wrEna
 );
-  wire  instMem_clock; // @[instructionFetch.scala 119:23]
-  wire  instMem_reset; // @[instructionFetch.scala 119:23]
-  wire [31:0] instMem_io_address; // @[instructionFetch.scala 119:23]
-  wire  instMem_io_ack; // @[instructionFetch.scala 119:23]
-  wire [31:0] instMem_io_inst; // @[instructionFetch.scala 119:23]
-  wire [31:0] instMem_io_rdAddr; // @[instructionFetch.scala 119:23]
-  wire [31:0] instMem_io_wrAddr; // @[instructionFetch.scala 119:23]
-  wire [2:0] instMem_io_fn3; // @[instructionFetch.scala 119:23]
-  wire [31:0] instMem_io_wrData; // @[instructionFetch.scala 119:23]
-  wire  instMem_io_wrEna; // @[instructionFetch.scala 119:23]
-  wire  PC_clock; // @[instructionFetch.scala 120:18]
-  wire  PC_reset; // @[instructionFetch.scala 120:18]
-  wire  PC_io_branchEna; // @[instructionFetch.scala 120:18]
-  wire [31:0] PC_io_branchAddr; // @[instructionFetch.scala 120:18]
-  wire  PC_io_AddrSet; // @[instructionFetch.scala 120:18]
-  wire [31:0] PC_io_PC; // @[instructionFetch.scala 120:18]
-  instructionMem instMem ( // @[instructionFetch.scala 119:23]
+  wire  instMem_clock; // @[instructionFetch.scala 121:23]
+  wire  instMem_reset; // @[instructionFetch.scala 121:23]
+  wire [31:0] instMem_io_address; // @[instructionFetch.scala 121:23]
+  wire  instMem_io_ack; // @[instructionFetch.scala 121:23]
+  wire [31:0] instMem_io_inst; // @[instructionFetch.scala 121:23]
+  wire [31:0] instMem_io_rdAddr; // @[instructionFetch.scala 121:23]
+  wire [31:0] instMem_io_wrAddr; // @[instructionFetch.scala 121:23]
+  wire [2:0] instMem_io_fn3; // @[instructionFetch.scala 121:23]
+  wire [31:0] instMem_io_wrData; // @[instructionFetch.scala 121:23]
+  wire  instMem_io_wrEna; // @[instructionFetch.scala 121:23]
+  wire  PC_clock; // @[instructionFetch.scala 122:18]
+  wire  PC_reset; // @[instructionFetch.scala 122:18]
+  wire  PC_io_branchEna; // @[instructionFetch.scala 122:18]
+  wire [31:0] PC_io_branchAddr; // @[instructionFetch.scala 122:18]
+  wire  PC_io_AddrSet; // @[instructionFetch.scala 122:18]
+  wire [31:0] PC_io_PC; // @[instructionFetch.scala 122:18]
+  wire [31:0] PC_io_PcReg; // @[instructionFetch.scala 122:18]
+  instructionMem instMem ( // @[instructionFetch.scala 121:23]
     .clock(instMem_clock),
     .reset(instMem_reset),
     .io_address(instMem_io_address),
@@ -550,30 +553,31 @@ module instructionFetch(
     .io_wrData(instMem_io_wrData),
     .io_wrEna(instMem_io_wrEna)
   );
-  PcCounter PC ( // @[instructionFetch.scala 120:18]
+  PcCounter PC ( // @[instructionFetch.scala 122:18]
     .clock(PC_clock),
     .reset(PC_reset),
     .io_branchEna(PC_io_branchEna),
     .io_branchAddr(PC_io_branchAddr),
     .io_AddrSet(PC_io_AddrSet),
-    .io_PC(PC_io_PC)
+    .io_PC(PC_io_PC),
+    .io_PcReg(PC_io_PcReg)
   );
-  assign io_inst = instMem_io_inst; // @[instructionFetch.scala 127:11]
-  assign io_ack = instMem_io_ack; // @[instructionFetch.scala 128:10]
-  assign io_PCVal = PC_io_PC; // @[instructionFetch.scala 126:12]
+  assign io_inst = instMem_io_inst; // @[instructionFetch.scala 130:11]
+  assign io_ack = instMem_io_ack; // @[instructionFetch.scala 131:10]
+  assign io_PcReg = PC_io_PcReg; // @[instructionFetch.scala 129:12]
   assign instMem_clock = clock;
   assign instMem_reset = reset;
-  assign instMem_io_address = PC_io_PC; // @[instructionFetch.scala 125:22]
-  assign instMem_io_rdAddr = PC_io_PC; // @[instructionFetch.scala 131:21]
-  assign instMem_io_wrAddr = io_wrAddr; // @[instructionFetch.scala 130:21]
-  assign instMem_io_fn3 = io_fn3; // @[instructionFetch.scala 132:18]
-  assign instMem_io_wrData = io_wrData; // @[instructionFetch.scala 133:21]
-  assign instMem_io_wrEna = io_wrEna; // @[instructionFetch.scala 134:20]
+  assign instMem_io_address = PC_io_PC; // @[instructionFetch.scala 127:22]
+  assign instMem_io_rdAddr = PC_io_PC; // @[instructionFetch.scala 134:21]
+  assign instMem_io_wrAddr = io_wrAddr; // @[instructionFetch.scala 133:21]
+  assign instMem_io_fn3 = io_fn3; // @[instructionFetch.scala 135:18]
+  assign instMem_io_wrData = io_wrData; // @[instructionFetch.scala 136:21]
+  assign instMem_io_wrEna = io_wrEna; // @[instructionFetch.scala 137:20]
   assign PC_clock = clock;
   assign PC_reset = reset;
-  assign PC_io_branchEna = io_branchEna; // @[instructionFetch.scala 121:19]
-  assign PC_io_branchAddr = io_branchAddr; // @[instructionFetch.scala 122:20]
-  assign PC_io_AddrSet = io_AddrSet; // @[instructionFetch.scala 123:17]
+  assign PC_io_branchEna = io_branchEna; // @[instructionFetch.scala 123:19]
+  assign PC_io_branchAddr = io_branchAddr; // @[instructionFetch.scala 124:20]
+  assign PC_io_AddrSet = io_AddrSet; // @[instructionFetch.scala 125:17]
 endmodule
 module AluControl(
   input  [2:0] io_fn3,
@@ -2436,121 +2440,116 @@ module risc(
   reg [31:0] _RAND_16;
   reg [31:0] _RAND_17;
   reg [31:0] _RAND_18;
-  reg [31:0] _RAND_19;
-  reg [31:0] _RAND_20;
-  reg [31:0] _RAND_21;
 `endif // RANDOMIZE_REG_INIT
-  wire  instFetch_clock; // @[risc.scala 61:25]
-  wire  instFetch_reset; // @[risc.scala 61:25]
-  wire  instFetch_io_branchEna; // @[risc.scala 61:25]
-  wire [31:0] instFetch_io_branchAddr; // @[risc.scala 61:25]
-  wire  instFetch_io_AddrSet; // @[risc.scala 61:25]
-  wire [31:0] instFetch_io_inst; // @[risc.scala 61:25]
-  wire  instFetch_io_ack; // @[risc.scala 61:25]
-  wire [31:0] instFetch_io_PCVal; // @[risc.scala 61:25]
-  wire [31:0] instFetch_io_wrAddr; // @[risc.scala 61:25]
-  wire [2:0] instFetch_io_fn3; // @[risc.scala 61:25]
-  wire [31:0] instFetch_io_wrData; // @[risc.scala 61:25]
-  wire  instFetch_io_wrEna; // @[risc.scala 61:25]
-  wire [31:0] decode_io_instruction; // @[risc.scala 62:22]
-  wire [31:0] decode_io_op1; // @[risc.scala 62:22]
-  wire [31:0] decode_io_op2; // @[risc.scala 62:22]
-  wire [2:0] decode_io_decodedInstr_fmt; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isLoad; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isStore; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isBranch; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isJal; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isJalr; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isLui; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isAuipc; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isEnv; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isImm; // @[risc.scala 62:22]
-  wire  decode_io_decodedInstr_isRs2; // @[risc.scala 62:22]
-  wire [31:0] decode_io_decodedInstr_imm; // @[risc.scala 62:22]
-  wire [31:0] decode_io_decodedInstr_op1; // @[risc.scala 62:22]
-  wire [31:0] decode_io_decodedInstr_op2; // @[risc.scala 62:22]
-  wire [4:0] decode_io_decodedInstr_rs1; // @[risc.scala 62:22]
-  wire [4:0] decode_io_decodedInstr_rs2; // @[risc.scala 62:22]
-  wire [4:0] decode_io_decodedInstr_rd; // @[risc.scala 62:22]
-  wire [2:0] decode_io_decodedInstr_fn3; // @[risc.scala 62:22]
-  wire [3:0] decode_io_decodedInstr_aluControl; // @[risc.scala 62:22]
-  wire  registerFile_clock; // @[risc.scala 63:28]
-  wire  registerFile_reset; // @[risc.scala 63:28]
-  wire [4:0] registerFile_io_rs1_sel; // @[risc.scala 63:28]
-  wire [4:0] registerFile_io_rs2_sel; // @[risc.scala 63:28]
-  wire  registerFile_io_wb_enable; // @[risc.scala 63:28]
-  wire [4:0] registerFile_io_wb_address; // @[risc.scala 63:28]
-  wire [31:0] registerFile_io_wb_data; // @[risc.scala 63:28]
-  wire [31:0] registerFile_io_rs1; // @[risc.scala 63:28]
-  wire [31:0] registerFile_io_rs2; // @[risc.scala 63:28]
-  wire  DM_clock; // @[risc.scala 64:18]
-  wire  DM_reset; // @[risc.scala 64:18]
-  wire [31:0] DM_io_rdAddr; // @[risc.scala 64:18]
-  wire [31:0] DM_io_rdData; // @[risc.scala 64:18]
-  wire [31:0] DM_io_wrAddr; // @[risc.scala 64:18]
-  wire [2:0] DM_io_fn3; // @[risc.scala 64:18]
-  wire [31:0] DM_io_wrData; // @[risc.scala 64:18]
-  wire  DM_io_wrEna; // @[risc.scala 64:18]
-  wire  DM_io_rdEna; // @[risc.scala 64:18]
-  wire [31:0] DM_io_LED; // @[risc.scala 64:18]
-  wire  DM_io_uart_tx; // @[risc.scala 64:18]
-  wire  DM_io_uart_rx; // @[risc.scala 64:18]
-  wire [11:0] DM_io_sevenSeg; // @[risc.scala 64:18]
-  wire [3:0] DM_io_VGABundle_red; // @[risc.scala 64:18]
-  wire [3:0] DM_io_VGABundle_green; // @[risc.scala 64:18]
-  wire [3:0] DM_io_VGABundle_blue; // @[risc.scala 64:18]
-  wire  DM_io_VGABundle_hsync; // @[risc.scala 64:18]
-  wire  DM_io_VGABundle_vsync; // @[risc.scala 64:18]
-  wire  DM_io_clock25; // @[risc.scala 64:18]
-  wire [31:0] ALU_io_op1; // @[risc.scala 65:19]
-  wire [31:0] ALU_io_op2; // @[risc.scala 65:19]
-  wire [3:0] ALU_io_aluControl; // @[risc.scala 65:19]
-  wire [31:0] ALU_io_result; // @[risc.scala 65:19]
-  wire  ALU_io_branchSelect; // @[risc.scala 65:19]
-  wire [2:0] ALU_io_fn3; // @[risc.scala 65:19]
-  wire  hazard_io_exDeInst_isLoad; // @[risc.scala 66:22]
-  wire [4:0] hazard_io_exDeInst_rd; // @[risc.scala 66:22]
-  wire  hazard_io_preDeInst_isLoad; // @[risc.scala 66:22]
-  wire  hazard_io_preDeInst_isRs2; // @[risc.scala 66:22]
-  wire [4:0] hazard_io_preDeInst_rs1; // @[risc.scala 66:22]
-  wire [4:0] hazard_io_preDeInst_rs2; // @[risc.scala 66:22]
-  wire  hazard_io_forwardRs1; // @[risc.scala 66:22]
-  wire  hazard_io_forwardRs2; // @[risc.scala 66:22]
-  wire  hazard_io_branch; // @[risc.scala 66:22]
-  wire  hazard_io_flush; // @[risc.scala 66:22]
-  reg [31:0] instReg; // @[risc.scala 70:24]
-  reg [31:0] PCReg1; // @[risc.scala 73:23]
-  reg [31:0] PCReg2; // @[risc.scala 74:23]
-  reg [31:0] PCReg3; // @[risc.scala 75:23]
-  reg [2:0] deExInstReg_fmt; // @[risc.scala 103:28]
-  reg  deExInstReg_isLoad; // @[risc.scala 103:28]
-  reg  deExInstReg_isBranch; // @[risc.scala 103:28]
-  reg  deExInstReg_isJal; // @[risc.scala 103:28]
-  reg  deExInstReg_isJalr; // @[risc.scala 103:28]
-  reg  deExInstReg_isLui; // @[risc.scala 103:28]
-  reg  deExInstReg_isAuipc; // @[risc.scala 103:28]
-  reg  deExInstReg_isEnv; // @[risc.scala 103:28]
-  reg  deExInstReg_isImm; // @[risc.scala 103:28]
-  reg [31:0] deExInstReg_imm; // @[risc.scala 103:28]
-  reg [31:0] deExInstReg_op1; // @[risc.scala 103:28]
-  reg [31:0] deExInstReg_op2; // @[risc.scala 103:28]
-  reg [4:0] deExInstReg_rd; // @[risc.scala 103:28]
-  reg [2:0] deExInstReg_fn3; // @[risc.scala 103:28]
-  reg [3:0] deExInstReg_aluControl; // @[risc.scala 103:28]
-  wire  branchEna = ALU_io_branchSelect & deExInstReg_isBranch | deExInstReg_isJal | deExInstReg_isJalr; // @[risc.scala 115:86]
-  reg [31:0] preResultReg; // @[risc.scala 117:29]
-  reg  forwardReg1; // @[risc.scala 118:28]
-  reg  forwardReg2; // @[risc.scala 119:28]
-  wire  _DM_io_wrEna_T = ~hazard_io_flush; // @[risc.scala 122:41]
-  wire [31:0] _instFetch_io_branchAddr_T_1 = deExInstReg_op1 + deExInstReg_imm; // @[risc.scala 142:68]
-  wire [31:0] _instFetch_io_branchAddr_T_2 = deExInstReg_isJalr ? _instFetch_io_branchAddr_T_1 : deExInstReg_imm; // @[risc.scala 142:33]
-  wire [31:0] _registerFile_io_wb_data_T_1 = PCReg3 + 32'h4; // @[risc.scala 151:39]
-  wire [31:0] _registerFile_io_wb_data_T_5 = PCReg3 + deExInstReg_imm; // @[risc.scala 155:38]
-  wire [31:0] _GEN_20 = deExInstReg_isAuipc ? _registerFile_io_wb_data_T_5 : ALU_io_result; // @[risc.scala 154:34 155:29 157:29]
-  wire [31:0] _GEN_21 = deExInstReg_isJalr ? _registerFile_io_wb_data_T_1 : _GEN_20; // @[risc.scala 152:33 153:29]
-  wire [31:0] _GEN_22 = deExInstReg_isJal ? _registerFile_io_wb_data_T_1 : _GEN_21; // @[risc.scala 150:32 151:29]
-  wire [31:0] _GEN_23 = deExInstReg_isLui ? deExInstReg_imm : _GEN_22; // @[risc.scala 148:32 149:29]
-  instructionFetch instFetch ( // @[risc.scala 61:25]
+  wire  instFetch_clock; // @[risc.scala 59:25]
+  wire  instFetch_reset; // @[risc.scala 59:25]
+  wire  instFetch_io_branchEna; // @[risc.scala 59:25]
+  wire [31:0] instFetch_io_branchAddr; // @[risc.scala 59:25]
+  wire  instFetch_io_AddrSet; // @[risc.scala 59:25]
+  wire [31:0] instFetch_io_inst; // @[risc.scala 59:25]
+  wire  instFetch_io_ack; // @[risc.scala 59:25]
+  wire [31:0] instFetch_io_PcReg; // @[risc.scala 59:25]
+  wire [31:0] instFetch_io_wrAddr; // @[risc.scala 59:25]
+  wire [2:0] instFetch_io_fn3; // @[risc.scala 59:25]
+  wire [31:0] instFetch_io_wrData; // @[risc.scala 59:25]
+  wire  instFetch_io_wrEna; // @[risc.scala 59:25]
+  wire [31:0] decode_io_instruction; // @[risc.scala 60:22]
+  wire [31:0] decode_io_op1; // @[risc.scala 60:22]
+  wire [31:0] decode_io_op2; // @[risc.scala 60:22]
+  wire [2:0] decode_io_decodedInstr_fmt; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isLoad; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isStore; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isBranch; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isJal; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isJalr; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isLui; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isAuipc; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isEnv; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isImm; // @[risc.scala 60:22]
+  wire  decode_io_decodedInstr_isRs2; // @[risc.scala 60:22]
+  wire [31:0] decode_io_decodedInstr_imm; // @[risc.scala 60:22]
+  wire [31:0] decode_io_decodedInstr_op1; // @[risc.scala 60:22]
+  wire [31:0] decode_io_decodedInstr_op2; // @[risc.scala 60:22]
+  wire [4:0] decode_io_decodedInstr_rs1; // @[risc.scala 60:22]
+  wire [4:0] decode_io_decodedInstr_rs2; // @[risc.scala 60:22]
+  wire [4:0] decode_io_decodedInstr_rd; // @[risc.scala 60:22]
+  wire [2:0] decode_io_decodedInstr_fn3; // @[risc.scala 60:22]
+  wire [3:0] decode_io_decodedInstr_aluControl; // @[risc.scala 60:22]
+  wire  registerFile_clock; // @[risc.scala 61:28]
+  wire  registerFile_reset; // @[risc.scala 61:28]
+  wire [4:0] registerFile_io_rs1_sel; // @[risc.scala 61:28]
+  wire [4:0] registerFile_io_rs2_sel; // @[risc.scala 61:28]
+  wire  registerFile_io_wb_enable; // @[risc.scala 61:28]
+  wire [4:0] registerFile_io_wb_address; // @[risc.scala 61:28]
+  wire [31:0] registerFile_io_wb_data; // @[risc.scala 61:28]
+  wire [31:0] registerFile_io_rs1; // @[risc.scala 61:28]
+  wire [31:0] registerFile_io_rs2; // @[risc.scala 61:28]
+  wire  DM_clock; // @[risc.scala 62:18]
+  wire  DM_reset; // @[risc.scala 62:18]
+  wire [31:0] DM_io_rdAddr; // @[risc.scala 62:18]
+  wire [31:0] DM_io_rdData; // @[risc.scala 62:18]
+  wire [31:0] DM_io_wrAddr; // @[risc.scala 62:18]
+  wire [2:0] DM_io_fn3; // @[risc.scala 62:18]
+  wire [31:0] DM_io_wrData; // @[risc.scala 62:18]
+  wire  DM_io_wrEna; // @[risc.scala 62:18]
+  wire  DM_io_rdEna; // @[risc.scala 62:18]
+  wire [31:0] DM_io_LED; // @[risc.scala 62:18]
+  wire  DM_io_uart_tx; // @[risc.scala 62:18]
+  wire  DM_io_uart_rx; // @[risc.scala 62:18]
+  wire [11:0] DM_io_sevenSeg; // @[risc.scala 62:18]
+  wire [3:0] DM_io_VGABundle_red; // @[risc.scala 62:18]
+  wire [3:0] DM_io_VGABundle_green; // @[risc.scala 62:18]
+  wire [3:0] DM_io_VGABundle_blue; // @[risc.scala 62:18]
+  wire  DM_io_VGABundle_hsync; // @[risc.scala 62:18]
+  wire  DM_io_VGABundle_vsync; // @[risc.scala 62:18]
+  wire  DM_io_clock25; // @[risc.scala 62:18]
+  wire [31:0] ALU_io_op1; // @[risc.scala 63:19]
+  wire [31:0] ALU_io_op2; // @[risc.scala 63:19]
+  wire [3:0] ALU_io_aluControl; // @[risc.scala 63:19]
+  wire [31:0] ALU_io_result; // @[risc.scala 63:19]
+  wire  ALU_io_branchSelect; // @[risc.scala 63:19]
+  wire [2:0] ALU_io_fn3; // @[risc.scala 63:19]
+  wire  hazard_io_exDeInst_isLoad; // @[risc.scala 64:22]
+  wire [4:0] hazard_io_exDeInst_rd; // @[risc.scala 64:22]
+  wire  hazard_io_preDeInst_isLoad; // @[risc.scala 64:22]
+  wire  hazard_io_preDeInst_isRs2; // @[risc.scala 64:22]
+  wire [4:0] hazard_io_preDeInst_rs1; // @[risc.scala 64:22]
+  wire [4:0] hazard_io_preDeInst_rs2; // @[risc.scala 64:22]
+  wire  hazard_io_forwardRs1; // @[risc.scala 64:22]
+  wire  hazard_io_forwardRs2; // @[risc.scala 64:22]
+  wire  hazard_io_branch; // @[risc.scala 64:22]
+  wire  hazard_io_flush; // @[risc.scala 64:22]
+  reg [31:0] instReg; // @[risc.scala 68:24]
+  reg [2:0] deExInstReg_fmt; // @[risc.scala 97:28]
+  reg  deExInstReg_isLoad; // @[risc.scala 97:28]
+  reg  deExInstReg_isBranch; // @[risc.scala 97:28]
+  reg  deExInstReg_isJal; // @[risc.scala 97:28]
+  reg  deExInstReg_isJalr; // @[risc.scala 97:28]
+  reg  deExInstReg_isLui; // @[risc.scala 97:28]
+  reg  deExInstReg_isAuipc; // @[risc.scala 97:28]
+  reg  deExInstReg_isEnv; // @[risc.scala 97:28]
+  reg  deExInstReg_isImm; // @[risc.scala 97:28]
+  reg [31:0] deExInstReg_imm; // @[risc.scala 97:28]
+  reg [31:0] deExInstReg_op1; // @[risc.scala 97:28]
+  reg [31:0] deExInstReg_op2; // @[risc.scala 97:28]
+  reg [4:0] deExInstReg_rd; // @[risc.scala 97:28]
+  reg [2:0] deExInstReg_fn3; // @[risc.scala 97:28]
+  reg [3:0] deExInstReg_aluControl; // @[risc.scala 97:28]
+  wire  branchEna = ALU_io_branchSelect & deExInstReg_isBranch | deExInstReg_isJal | deExInstReg_isJalr; // @[risc.scala 109:86]
+  reg [31:0] preResultReg; // @[risc.scala 111:29]
+  reg  forwardReg1; // @[risc.scala 112:28]
+  reg  forwardReg2; // @[risc.scala 113:28]
+  wire  _DM_io_wrEna_T = ~hazard_io_flush; // @[risc.scala 116:41]
+  wire [31:0] _instFetch_io_branchAddr_T_1 = deExInstReg_op1 + deExInstReg_imm; // @[risc.scala 136:68]
+  wire [31:0] _instFetch_io_branchAddr_T_2 = deExInstReg_isJalr ? _instFetch_io_branchAddr_T_1 : deExInstReg_imm; // @[risc.scala 136:33]
+  wire [31:0] _registerFile_io_wb_data_T_1 = instFetch_io_PcReg - 32'h4; // @[risc.scala 145:38]
+  wire [31:0] _registerFile_io_wb_data_T_5 = instFetch_io_PcReg + deExInstReg_imm; // @[risc.scala 149:38]
+  wire [31:0] _registerFile_io_wb_data_T_7 = _registerFile_io_wb_data_T_5 - 32'h8; // @[risc.scala 149:56]
+  wire [31:0] _GEN_20 = deExInstReg_isAuipc ? _registerFile_io_wb_data_T_7 : ALU_io_result; // @[risc.scala 148:34 149:29 151:29]
+  wire [31:0] _GEN_21 = deExInstReg_isJalr ? _registerFile_io_wb_data_T_1 : _GEN_20; // @[risc.scala 146:33 147:29]
+  wire [31:0] _GEN_22 = deExInstReg_isJal ? _registerFile_io_wb_data_T_1 : _GEN_21; // @[risc.scala 144:32 145:29]
+  wire [31:0] _GEN_23 = deExInstReg_isLui ? deExInstReg_imm : _GEN_22; // @[risc.scala 142:32 143:29]
+  instructionFetch instFetch ( // @[risc.scala 59:25]
     .clock(instFetch_clock),
     .reset(instFetch_reset),
     .io_branchEna(instFetch_io_branchEna),
@@ -2558,13 +2557,13 @@ module risc(
     .io_AddrSet(instFetch_io_AddrSet),
     .io_inst(instFetch_io_inst),
     .io_ack(instFetch_io_ack),
-    .io_PCVal(instFetch_io_PCVal),
+    .io_PcReg(instFetch_io_PcReg),
     .io_wrAddr(instFetch_io_wrAddr),
     .io_fn3(instFetch_io_fn3),
     .io_wrData(instFetch_io_wrData),
     .io_wrEna(instFetch_io_wrEna)
   );
-  Decode decode ( // @[risc.scala 62:22]
+  Decode decode ( // @[risc.scala 60:22]
     .io_instruction(decode_io_instruction),
     .io_op1(decode_io_op1),
     .io_op2(decode_io_op2),
@@ -2588,7 +2587,7 @@ module risc(
     .io_decodedInstr_fn3(decode_io_decodedInstr_fn3),
     .io_decodedInstr_aluControl(decode_io_decodedInstr_aluControl)
   );
-  registerFile registerFile ( // @[risc.scala 63:28]
+  registerFile registerFile ( // @[risc.scala 61:28]
     .clock(registerFile_clock),
     .reset(registerFile_reset),
     .io_rs1_sel(registerFile_io_rs1_sel),
@@ -2599,7 +2598,7 @@ module risc(
     .io_rs1(registerFile_io_rs1),
     .io_rs2(registerFile_io_rs2)
   );
-  DataMemory DM ( // @[risc.scala 64:18]
+  DataMemory DM ( // @[risc.scala 62:18]
     .clock(DM_clock),
     .reset(DM_reset),
     .io_rdAddr(DM_io_rdAddr),
@@ -2620,7 +2619,7 @@ module risc(
     .io_VGABundle_vsync(DM_io_VGABundle_vsync),
     .io_clock25(DM_io_clock25)
   );
-  ALU ALU ( // @[risc.scala 65:19]
+  ALU ALU ( // @[risc.scala 63:19]
     .io_op1(ALU_io_op1),
     .io_op2(ALU_io_op2),
     .io_aluControl(ALU_io_aluControl),
@@ -2628,7 +2627,7 @@ module risc(
     .io_branchSelect(ALU_io_branchSelect),
     .io_fn3(ALU_io_fn3)
   );
-  hazard hazard ( // @[risc.scala 66:22]
+  hazard hazard ( // @[risc.scala 64:22]
     .io_exDeInst_isLoad(hazard_io_exDeInst_isLoad),
     .io_exDeInst_rd(hazard_io_exDeInst_rd),
     .io_preDeInst_isLoad(hazard_io_preDeInst_isLoad),
@@ -2640,176 +2639,173 @@ module risc(
     .io_branch(hazard_io_branch),
     .io_flush(hazard_io_flush)
   );
-  assign io_LED = DM_io_LED[15:0]; // @[risc.scala 161:22]
-  assign io_uart_tx = DM_io_uart_tx; // @[risc.scala 164:14]
-  assign io_sevenSeg = DM_io_sevenSeg; // @[risc.scala 167:15]
-  assign io_VGABundle_red = DM_io_VGABundle_red; // @[risc.scala 170:16]
-  assign io_VGABundle_green = DM_io_VGABundle_green; // @[risc.scala 170:16]
-  assign io_VGABundle_blue = DM_io_VGABundle_blue; // @[risc.scala 170:16]
-  assign io_VGABundle_hsync = DM_io_VGABundle_hsync; // @[risc.scala 170:16]
-  assign io_VGABundle_vsync = DM_io_VGABundle_vsync; // @[risc.scala 170:16]
+  assign io_LED = DM_io_LED[15:0]; // @[risc.scala 155:22]
+  assign io_uart_tx = DM_io_uart_tx; // @[risc.scala 158:14]
+  assign io_sevenSeg = DM_io_sevenSeg; // @[risc.scala 161:15]
+  assign io_VGABundle_red = DM_io_VGABundle_red; // @[risc.scala 164:16]
+  assign io_VGABundle_green = DM_io_VGABundle_green; // @[risc.scala 164:16]
+  assign io_VGABundle_blue = DM_io_VGABundle_blue; // @[risc.scala 164:16]
+  assign io_VGABundle_hsync = DM_io_VGABundle_hsync; // @[risc.scala 164:16]
+  assign io_VGABundle_vsync = DM_io_VGABundle_vsync; // @[risc.scala 164:16]
   assign instFetch_clock = clock;
   assign instFetch_reset = reset;
-  assign instFetch_io_branchEna = deExInstReg_isEnv | branchEna; // @[risc.scala 140:26 179:26 183:28]
-  assign instFetch_io_branchAddr = deExInstReg_isEnv ? 32'h0 : _instFetch_io_branchAddr_T_2; // @[risc.scala 179:26 142:27 185:29]
-  assign instFetch_io_AddrSet = deExInstReg_isEnv | deExInstReg_isJalr; // @[risc.scala 141:24 179:26 184:26]
-  assign instFetch_io_wrAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 97:42]
-  assign instFetch_io_fn3 = decode_io_decodedInstr_fn3; // @[risc.scala 99:20]
-  assign instFetch_io_wrData = decode_io_decodedInstr_op2; // @[risc.scala 98:23]
-  assign instFetch_io_wrEna = decode_io_decodedInstr_isStore & _DM_io_wrEna_T; // @[risc.scala 123:45]
-  assign decode_io_instruction = instReg; // @[risc.scala 78:25]
-  assign decode_io_op1 = registerFile_io_rs1; // @[risc.scala 81:17]
-  assign decode_io_op2 = registerFile_io_rs2; // @[risc.scala 82:17]
+  assign instFetch_io_branchEna = deExInstReg_isEnv | branchEna; // @[risc.scala 134:26 173:26 177:28]
+  assign instFetch_io_branchAddr = deExInstReg_isEnv ? 32'h0 : _instFetch_io_branchAddr_T_2; // @[risc.scala 173:26 136:27 179:29]
+  assign instFetch_io_AddrSet = deExInstReg_isEnv | deExInstReg_isJalr; // @[risc.scala 135:24 173:26 178:26]
+  assign instFetch_io_wrAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 91:42]
+  assign instFetch_io_fn3 = decode_io_decodedInstr_fn3; // @[risc.scala 93:20]
+  assign instFetch_io_wrData = decode_io_decodedInstr_op2; // @[risc.scala 92:23]
+  assign instFetch_io_wrEna = decode_io_decodedInstr_isStore & _DM_io_wrEna_T; // @[risc.scala 117:45]
+  assign decode_io_instruction = instReg; // @[risc.scala 73:25]
+  assign decode_io_op1 = registerFile_io_rs1; // @[risc.scala 76:17]
+  assign decode_io_op2 = registerFile_io_rs2; // @[risc.scala 77:17]
   assign registerFile_clock = clock;
   assign registerFile_reset = reset;
-  assign registerFile_io_rs1_sel = decode_io_decodedInstr_rs1; // @[risc.scala 84:27]
-  assign registerFile_io_rs2_sel = decode_io_decodedInstr_rs2; // @[risc.scala 85:27]
+  assign registerFile_io_rs1_sel = decode_io_decodedInstr_rs1; // @[risc.scala 79:27]
+  assign registerFile_io_rs2_sel = decode_io_decodedInstr_rs2; // @[risc.scala 80:27]
   assign registerFile_io_wb_enable = (deExInstReg_fmt == 3'h0 | deExInstReg_isImm | deExInstReg_isLoad |
-    deExInstReg_isLui | deExInstReg_isJal | deExInstReg_isJalr | deExInstReg_isAuipc) & ~deExInstReg_isBranch; // @[risc.scala 106:192]
-  assign registerFile_io_wb_address = deExInstReg_rd; // @[risc.scala 107:30]
-  assign registerFile_io_wb_data = deExInstReg_isLoad ? DM_io_rdData : _GEN_23; // @[risc.scala 146:27 147:29]
+    deExInstReg_isLui | deExInstReg_isJal | deExInstReg_isJalr | deExInstReg_isAuipc) & ~deExInstReg_isBranch; // @[risc.scala 100:192]
+  assign registerFile_io_wb_address = deExInstReg_rd; // @[risc.scala 101:30]
+  assign registerFile_io_wb_data = deExInstReg_isLoad ? DM_io_rdData : _GEN_23; // @[risc.scala 140:27 141:29]
   assign DM_clock = clock;
   assign DM_reset = reset;
-  assign DM_io_rdAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 92:35]
-  assign DM_io_wrAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 91:35]
-  assign DM_io_fn3 = decode_io_decodedInstr_fn3; // @[risc.scala 109:13]
-  assign DM_io_wrData = decode_io_decodedInstr_op2; // @[risc.scala 94:16]
-  assign DM_io_wrEna = decode_io_decodedInstr_isStore & ~hazard_io_flush; // @[risc.scala 122:38]
-  assign DM_io_rdEna = decode_io_decodedInstr_isLoad & _DM_io_wrEna_T; // @[risc.scala 124:37]
-  assign DM_io_uart_rx = io_uart_rx; // @[risc.scala 164:14]
-  assign DM_io_clock25 = io_clock25; // @[risc.scala 171:17]
-  assign ALU_io_op1 = forwardReg1 ? preResultReg : deExInstReg_op1; // @[risc.scala 134:20]
-  assign ALU_io_op2 = forwardReg2 ? preResultReg : deExInstReg_op2; // @[risc.scala 135:20]
-  assign ALU_io_aluControl = deExInstReg_aluControl; // @[risc.scala 136:21]
-  assign ALU_io_fn3 = deExInstReg_fn3; // @[risc.scala 137:14]
-  assign hazard_io_exDeInst_isLoad = deExInstReg_isLoad; // @[risc.scala 113:22]
-  assign hazard_io_exDeInst_rd = deExInstReg_rd; // @[risc.scala 113:22]
-  assign hazard_io_preDeInst_isLoad = decode_io_decodedInstr_isLoad; // @[risc.scala 114:23]
-  assign hazard_io_preDeInst_isRs2 = decode_io_decodedInstr_isRs2; // @[risc.scala 114:23]
-  assign hazard_io_preDeInst_rs1 = decode_io_decodedInstr_rs1; // @[risc.scala 114:23]
-  assign hazard_io_preDeInst_rs2 = decode_io_decodedInstr_rs2; // @[risc.scala 114:23]
-  assign hazard_io_branch = ALU_io_branchSelect & deExInstReg_isBranch | deExInstReg_isJal | deExInstReg_isJalr; // @[risc.scala 115:86]
+  assign DM_io_rdAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 87:35]
+  assign DM_io_wrAddr = decode_io_decodedInstr_op1 + decode_io_decodedInstr_imm; // @[risc.scala 86:35]
+  assign DM_io_fn3 = decode_io_decodedInstr_fn3; // @[risc.scala 103:13]
+  assign DM_io_wrData = decode_io_decodedInstr_op2; // @[risc.scala 88:16]
+  assign DM_io_wrEna = decode_io_decodedInstr_isStore & ~hazard_io_flush; // @[risc.scala 116:38]
+  assign DM_io_rdEna = decode_io_decodedInstr_isLoad & _DM_io_wrEna_T; // @[risc.scala 118:37]
+  assign DM_io_uart_rx = io_uart_rx; // @[risc.scala 158:14]
+  assign DM_io_clock25 = io_clock25; // @[risc.scala 165:17]
+  assign ALU_io_op1 = forwardReg1 ? preResultReg : deExInstReg_op1; // @[risc.scala 128:20]
+  assign ALU_io_op2 = forwardReg2 ? preResultReg : deExInstReg_op2; // @[risc.scala 129:20]
+  assign ALU_io_aluControl = deExInstReg_aluControl; // @[risc.scala 130:21]
+  assign ALU_io_fn3 = deExInstReg_fn3; // @[risc.scala 131:14]
+  assign hazard_io_exDeInst_isLoad = deExInstReg_isLoad; // @[risc.scala 107:22]
+  assign hazard_io_exDeInst_rd = deExInstReg_rd; // @[risc.scala 107:22]
+  assign hazard_io_preDeInst_isLoad = decode_io_decodedInstr_isLoad; // @[risc.scala 108:23]
+  assign hazard_io_preDeInst_isRs2 = decode_io_decodedInstr_isRs2; // @[risc.scala 108:23]
+  assign hazard_io_preDeInst_rs1 = decode_io_decodedInstr_rs1; // @[risc.scala 108:23]
+  assign hazard_io_preDeInst_rs2 = decode_io_decodedInstr_rs2; // @[risc.scala 108:23]
+  assign hazard_io_branch = ALU_io_branchSelect & deExInstReg_isBranch | deExInstReg_isJal | deExInstReg_isJalr; // @[risc.scala 109:86]
   always @(posedge clock) begin
-    if (reset) begin // @[risc.scala 70:24]
-      instReg <= 32'h13; // @[risc.scala 70:24]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      instReg <= 32'h13; // @[risc.scala 130:13]
-    end else if (instFetch_io_ack) begin // @[risc.scala 69:29]
+    if (reset) begin // @[risc.scala 68:24]
+      instReg <= 32'h13; // @[risc.scala 68:24]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      instReg <= 32'h13; // @[risc.scala 124:13]
+    end else if (instFetch_io_ack) begin // @[risc.scala 67:29]
       instReg <= instFetch_io_inst;
     end else begin
       instReg <= 32'h13;
     end
-    PCReg1 <= instFetch_io_PCVal; // @[risc.scala 73:23]
-    PCReg2 <= PCReg1; // @[risc.scala 74:23]
-    PCReg3 <= PCReg2; // @[risc.scala 75:23]
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_fmt <= decode_io_decodedInstr_fmt; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_fmt <= 3'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_fmt <= decode_io_decodedInstr_fmt; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_fmt <= 3'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_fmt <= decode_io_decodedInstr_fmt; // @[risc.scala 104:15]
+      deExInstReg_fmt <= decode_io_decodedInstr_fmt; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isLoad <= decode_io_decodedInstr_isLoad; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isLoad <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isLoad <= decode_io_decodedInstr_isLoad; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isLoad <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isLoad <= decode_io_decodedInstr_isLoad; // @[risc.scala 104:15]
+      deExInstReg_isLoad <= decode_io_decodedInstr_isLoad; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isBranch <= decode_io_decodedInstr_isBranch; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isBranch <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isBranch <= decode_io_decodedInstr_isBranch; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isBranch <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isBranch <= decode_io_decodedInstr_isBranch; // @[risc.scala 104:15]
+      deExInstReg_isBranch <= decode_io_decodedInstr_isBranch; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isJal <= decode_io_decodedInstr_isJal; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isJal <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isJal <= decode_io_decodedInstr_isJal; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isJal <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isJal <= decode_io_decodedInstr_isJal; // @[risc.scala 104:15]
+      deExInstReg_isJal <= decode_io_decodedInstr_isJal; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isJalr <= decode_io_decodedInstr_isJalr; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isJalr <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isJalr <= decode_io_decodedInstr_isJalr; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isJalr <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isJalr <= decode_io_decodedInstr_isJalr; // @[risc.scala 104:15]
+      deExInstReg_isJalr <= decode_io_decodedInstr_isJalr; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isLui <= decode_io_decodedInstr_isLui; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isLui <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isLui <= decode_io_decodedInstr_isLui; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isLui <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isLui <= decode_io_decodedInstr_isLui; // @[risc.scala 104:15]
+      deExInstReg_isLui <= decode_io_decodedInstr_isLui; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isAuipc <= decode_io_decodedInstr_isAuipc; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isAuipc <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isAuipc <= decode_io_decodedInstr_isAuipc; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isAuipc <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isAuipc <= decode_io_decodedInstr_isAuipc; // @[risc.scala 104:15]
+      deExInstReg_isAuipc <= decode_io_decodedInstr_isAuipc; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isEnv <= decode_io_decodedInstr_isEnv; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isEnv <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isEnv <= decode_io_decodedInstr_isEnv; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isEnv <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isEnv <= decode_io_decodedInstr_isEnv; // @[risc.scala 104:15]
+      deExInstReg_isEnv <= decode_io_decodedInstr_isEnv; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_isImm <= decode_io_decodedInstr_isImm; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_isImm <= 1'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_isImm <= decode_io_decodedInstr_isImm; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_isImm <= 1'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_isImm <= decode_io_decodedInstr_isImm; // @[risc.scala 104:15]
+      deExInstReg_isImm <= decode_io_decodedInstr_isImm; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_imm <= decode_io_decodedInstr_imm; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_imm <= 32'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_imm <= decode_io_decodedInstr_imm; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_imm <= 32'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_imm <= decode_io_decodedInstr_imm; // @[risc.scala 104:15]
+      deExInstReg_imm <= decode_io_decodedInstr_imm; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_op1 <= decode_io_decodedInstr_op1; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_op1 <= 32'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_op1 <= decode_io_decodedInstr_op1; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_op1 <= 32'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_op1 <= decode_io_decodedInstr_op1; // @[risc.scala 104:15]
+      deExInstReg_op1 <= decode_io_decodedInstr_op1; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_op2 <= decode_io_decodedInstr_op2; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_op2 <= 32'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_op2 <= decode_io_decodedInstr_op2; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_op2 <= 32'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_op2 <= decode_io_decodedInstr_op2; // @[risc.scala 104:15]
+      deExInstReg_op2 <= decode_io_decodedInstr_op2; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_rd <= decode_io_decodedInstr_rd; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_rd <= 5'h0; // @[risc.scala 127:20]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_rd <= decode_io_decodedInstr_rd; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_rd <= 5'h0; // @[risc.scala 121:20]
     end else begin
-      deExInstReg_rd <= decode_io_decodedInstr_rd; // @[risc.scala 104:15]
+      deExInstReg_rd <= decode_io_decodedInstr_rd; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_fn3 <= decode_io_decodedInstr_fn3; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_fn3 <= 3'h0; // @[risc.scala 126:17]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_fn3 <= decode_io_decodedInstr_fn3; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_fn3 <= 3'h0; // @[risc.scala 120:17]
     end else begin
-      deExInstReg_fn3 <= decode_io_decodedInstr_fn3; // @[risc.scala 104:15]
+      deExInstReg_fn3 <= decode_io_decodedInstr_fn3; // @[risc.scala 98:15]
     end
-    if (reset) begin // @[risc.scala 103:28]
-      deExInstReg_aluControl <= decode_io_decodedInstr_aluControl; // @[risc.scala 103:28]
-    end else if (hazard_io_flush) begin // @[risc.scala 125:25]
-      deExInstReg_aluControl <= 4'h0; // @[risc.scala 128:28]
+    if (reset) begin // @[risc.scala 97:28]
+      deExInstReg_aluControl <= decode_io_decodedInstr_aluControl; // @[risc.scala 97:28]
+    end else if (hazard_io_flush) begin // @[risc.scala 119:25]
+      deExInstReg_aluControl <= 4'h0; // @[risc.scala 122:28]
     end else begin
-      deExInstReg_aluControl <= decode_io_decodedInstr_aluControl; // @[risc.scala 104:15]
+      deExInstReg_aluControl <= decode_io_decodedInstr_aluControl; // @[risc.scala 98:15]
     end
-    preResultReg <= registerFile_io_wb_data; // @[risc.scala 117:29]
-    forwardReg1 <= hazard_io_forwardRs1; // @[risc.scala 118:28]
-    forwardReg2 <= hazard_io_forwardRs2; // @[risc.scala 119:28]
+    preResultReg <= registerFile_io_wb_data; // @[risc.scala 111:29]
+    forwardReg1 <= hazard_io_forwardRs1; // @[risc.scala 112:28]
+    forwardReg2 <= hazard_io_forwardRs2; // @[risc.scala 113:28]
   end
 // Register and memory initialization
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
@@ -2850,47 +2846,41 @@ initial begin
   _RAND_0 = {1{`RANDOM}};
   instReg = _RAND_0[31:0];
   _RAND_1 = {1{`RANDOM}};
-  PCReg1 = _RAND_1[31:0];
+  deExInstReg_fmt = _RAND_1[2:0];
   _RAND_2 = {1{`RANDOM}};
-  PCReg2 = _RAND_2[31:0];
+  deExInstReg_isLoad = _RAND_2[0:0];
   _RAND_3 = {1{`RANDOM}};
-  PCReg3 = _RAND_3[31:0];
+  deExInstReg_isBranch = _RAND_3[0:0];
   _RAND_4 = {1{`RANDOM}};
-  deExInstReg_fmt = _RAND_4[2:0];
+  deExInstReg_isJal = _RAND_4[0:0];
   _RAND_5 = {1{`RANDOM}};
-  deExInstReg_isLoad = _RAND_5[0:0];
+  deExInstReg_isJalr = _RAND_5[0:0];
   _RAND_6 = {1{`RANDOM}};
-  deExInstReg_isBranch = _RAND_6[0:0];
+  deExInstReg_isLui = _RAND_6[0:0];
   _RAND_7 = {1{`RANDOM}};
-  deExInstReg_isJal = _RAND_7[0:0];
+  deExInstReg_isAuipc = _RAND_7[0:0];
   _RAND_8 = {1{`RANDOM}};
-  deExInstReg_isJalr = _RAND_8[0:0];
+  deExInstReg_isEnv = _RAND_8[0:0];
   _RAND_9 = {1{`RANDOM}};
-  deExInstReg_isLui = _RAND_9[0:0];
+  deExInstReg_isImm = _RAND_9[0:0];
   _RAND_10 = {1{`RANDOM}};
-  deExInstReg_isAuipc = _RAND_10[0:0];
+  deExInstReg_imm = _RAND_10[31:0];
   _RAND_11 = {1{`RANDOM}};
-  deExInstReg_isEnv = _RAND_11[0:0];
+  deExInstReg_op1 = _RAND_11[31:0];
   _RAND_12 = {1{`RANDOM}};
-  deExInstReg_isImm = _RAND_12[0:0];
+  deExInstReg_op2 = _RAND_12[31:0];
   _RAND_13 = {1{`RANDOM}};
-  deExInstReg_imm = _RAND_13[31:0];
+  deExInstReg_rd = _RAND_13[4:0];
   _RAND_14 = {1{`RANDOM}};
-  deExInstReg_op1 = _RAND_14[31:0];
+  deExInstReg_fn3 = _RAND_14[2:0];
   _RAND_15 = {1{`RANDOM}};
-  deExInstReg_op2 = _RAND_15[31:0];
+  deExInstReg_aluControl = _RAND_15[3:0];
   _RAND_16 = {1{`RANDOM}};
-  deExInstReg_rd = _RAND_16[4:0];
+  preResultReg = _RAND_16[31:0];
   _RAND_17 = {1{`RANDOM}};
-  deExInstReg_fn3 = _RAND_17[2:0];
+  forwardReg1 = _RAND_17[0:0];
   _RAND_18 = {1{`RANDOM}};
-  deExInstReg_aluControl = _RAND_18[3:0];
-  _RAND_19 = {1{`RANDOM}};
-  preResultReg = _RAND_19[31:0];
-  _RAND_20 = {1{`RANDOM}};
-  forwardReg1 = _RAND_20[0:0];
-  _RAND_21 = {1{`RANDOM}};
-  forwardReg2 = _RAND_21[0:0];
+  forwardReg2 = _RAND_18[0:0];
 `endif // RANDOMIZE_REG_INIT
   `endif // RANDOMIZE
 end // initial

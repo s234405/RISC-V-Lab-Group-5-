@@ -30,7 +30,7 @@ def send(name = "LED"):
         ser.write(bytes([b]))
         sent += 1
         #print(f"{b:02x}")
-        time.sleep(0.005)
+        #time.sleep(0.0005)
 
 
     print(f"Done! Sent {sent} bytes.")

@@ -77,7 +77,6 @@ class instructionMem(code: Array[Int], name:String) extends Module {
     mem.write(io.wrAddr(index+addrOffset, addrOffset), wrVec, wrMask)
     //printf("writing: %x %x %x %x\n",  wrVec(0), wrVec(1), wrVec(2), wrVec(3))
     //printf("to addrs: %x\n",  io.wrAddr)
-
   }
 
   // first instruction shall not be executed
@@ -93,11 +92,13 @@ class PcCounter extends Module {
     val AddrSet = Input(Bool())
     val start = Input(Bool())
     val PC = Output(UInt(32.W))
+    val PcReg = Output(UInt(32.W))
   })
   val PcReg = RegInit(-4.S(32.W).asUInt)
   val PcNext = WireDefault(Mux(io.branchEna,Mux(io.AddrSet,io.branchAddr,PcReg+io.branchAddr-8.U),PcReg+4.U))
   PcReg := Mux(io.start,PcNext,PcReg)
   io.PC := PcNext
+  io.PcReg := PcReg
   //printf("Current value of pc: %x\n", io.PC)
 }
 
@@ -110,11 +111,12 @@ class instructionFetch(code: Array[Int], name: String) extends Module {
     val inst = Output(UInt(32.W))
     val ack = Output(Bool())
     val PCVal = Output(UInt(32.W))
+    val PcReg = Output(UInt(32.W))
 
     val wrAddr = Input(UInt (32.W))
     val fn3 = Input(UInt (3.W))
     val wrData = Input(UInt (32.W))
-    val wrEna = Input(Bool ())
+    val wrEna = Input(Bool())
   })
   val instMem = Module(new instructionMem(code, name))
   val PC = Module(new PcCounter)
@@ -124,6 +126,7 @@ class instructionFetch(code: Array[Int], name: String) extends Module {
   PC.io.start := io.start
   instMem.io.address := PC.io.PC
   io.PCVal := PC.io.PC
+  io.PcReg := PC.io.PcReg
   io.inst := instMem.io.inst
   io.ack := instMem.io.ack
 

@@ -5,24 +5,21 @@ import chisel3._
 import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
-import lib.peripherals.MemoryMappedLeds
 
 import java.io.PrintWriter
 import chisel3.util.experimental.{loadMemoryFromFile, loadMemoryFromFileInline}
-import master.Opcode._
 import master.FMT._
 import master.{VGABundle, decInstr}
-import master.Fn3Values._
+
 import master.AluEnum._
-import master.BranchFn3._
-import master.memFn3._
+
 
 import java.nio.file.{Files, Paths}
 import java.nio.{ByteBuffer, ByteOrder}
 
 object risc extends App {
   val name = "bootloader"
-  val raw = Files.readAllBytes(Paths.get("bootloader.bin"))
+  val raw = Files.readAllBytes(Paths.get("binaryFiles/bootloader.bin"))
 
   val pad = (4 - (raw.length % 4)) % 4
   val progBytes =
@@ -48,10 +45,10 @@ class risc(code: Array[Int],name: String) extends Module {
     val uart = UartPins()
     val sevenSeg = Output(UInt(12.W))
     val VGABundle = new VGABundle
-    //val clock25 = Input(Clock())
+    val clock25 = Input(Clock())
     //for test
-    val stop = Output(Bool())
-    val reg = Output(Vec(32, UInt(32.W)))
+    //val stop = Output(Bool())
+    //val reg = Output(Vec(32, UInt(32.W)))
   })
   //create hex file for mem init (not used)
   //val pw = new PrintWriter("hexFiles/" + name + ".hex")
@@ -70,10 +67,7 @@ class risc(code: Array[Int],name: String) extends Module {
   val inst = WireDefault(Mux(instFetch.io.ack,instFetch.io.inst,0x00000013.U))
   val instReg = RegInit(0x00000013.U) // instruction register, init nop
   instReg := inst
-  val PC = instFetch.io.PCVal
-  val PCReg1 = RegNext(PC)
-  val PCReg2 = RegNext(PCReg1)
-  val PCReg3 = RegNext(PCReg2)
+  val PcReg = instFetch.io.PcReg
 
   //decode stage
   decode.io.instruction := instReg
@@ -148,11 +142,11 @@ class risc(code: Array[Int],name: String) extends Module {
   }.elsewhen(deExInstReg.isLui){
     registerFile.io.wb_data := deExInstReg.imm
   }.elsewhen(deExInstReg.isJal){
-    registerFile.io.wb_data := PCReg3 + 4.U
+    registerFile.io.wb_data := PcReg - 4.U
   }.elsewhen(deExInstReg.isJalr){
-    registerFile.io.wb_data := PCReg3 + 4.U
+    registerFile.io.wb_data := PcReg - 4.U
   }.elsewhen(deExInstReg.isAuipc){
-    registerFile.io.wb_data := PCReg3+deExInstReg.imm
+    registerFile.io.wb_data := PcReg + deExInstReg.imm -8.U
   }.otherwise{
     registerFile.io.wb_data := ALU.io.result
   }
@@ -168,14 +162,14 @@ class risc(code: Array[Int],name: String) extends Module {
 
   //VGA
   io.VGABundle := DM.io.VGABundle
-  //DM.io.clock25 := io.clock25
+  DM.io.clock25 := io.clock25
 
   //debug output
-  io.reg := registerFile.io.registers
+  //io.reg := registerFile.io.registers
 
   //stop on ecall
   val stop = RegInit(false.B)
-  io.stop := stop
+  //io.stop := stop
   when(deExInstReg.isEnv){
     // for sim
     stop := true.B

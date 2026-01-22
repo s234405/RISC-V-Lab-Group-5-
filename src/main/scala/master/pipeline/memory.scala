@@ -36,7 +36,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
     val uart = UartPins()
     val sevenSeg = Output(UInt(12.W))
     val VGABundle = new VGABundle
-    val clock25 = Input(Clock())
+    //val clock25 = Input(Clock())
   })
   val size =   4096 //1048576
   val index = log2Up(size/4)
@@ -50,7 +50,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
 
   //remove for synthesis vvvv
   // load instruction to Data memory, only for test
-  /*
+
   val depth     = size / 4                      // number of 32-bit words
   val indexBits = log2Up(depth)
 
@@ -81,12 +81,12 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
       initDone := true.B
     }
   }
-  */
+
   //Remove ^^^^
 
 
   //remove for test vvv
-  io.done := true.B
+  //io.done := true.B
 
 
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
@@ -190,7 +190,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
 
   //vga
   val VGA = Module(new MemoryMappedVGA)
-  VGA.io.clock25 := io.clock25
+  //VGA.io.clock25 := io.clock25
   VGA.io.port.write := false.B
   VGA.io.port.wrData := 0.U
   VGA.io.port.addr := 0.U

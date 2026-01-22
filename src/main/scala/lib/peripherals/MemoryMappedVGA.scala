@@ -8,7 +8,7 @@ class MemoryMappedVGA() extends Module {
   val io = IO(new Bundle {
     val port = Bus.RespondPort()
     val VGABundle = new VGABundle
-    val clock25 = Input(Clock())
+    //val clock25 = Input(Clock())
   })
 
 
@@ -25,7 +25,7 @@ class MemoryMappedVGA() extends Module {
 
   io.port.rdData := blueReg ## greenReg ## redReg
 
-  withClock(io.clock25) {
+  //withClock(io.clock25) {
 
     val TOTAL_COL = 800
     val TOTAL_ROW = 525
@@ -65,5 +65,5 @@ class MemoryMappedVGA() extends Module {
     io.VGABundle.red := Mux(active, redReg, 0.U)
     io.VGABundle.green := Mux(active, greenReg, 0.U)
     io.VGABundle.blue := Mux(active, blueReg, 0.U)
-  }
+  //}
 }

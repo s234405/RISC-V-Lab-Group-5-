@@ -45,10 +45,10 @@ class risc(code: Array[Int],name: String) extends Module {
     val uart = UartPins()
     val sevenSeg = Output(UInt(12.W))
     val VGABundle = new VGABundle
-    val clock25 = Input(Clock())
+    //val clock25 = Input(Clock())
     //for test
-    //val stop = Output(Bool())
-    //val reg = Output(Vec(32, UInt(32.W)))
+    val stop = Output(Bool())
+    val reg = Output(Vec(32, UInt(32.W)))
   })
   //create hex file for mem init (not used)
   //val pw = new PrintWriter("hexFiles/" + name + ".hex")
@@ -162,14 +162,14 @@ class risc(code: Array[Int],name: String) extends Module {
 
   //VGA
   io.VGABundle := DM.io.VGABundle
-  DM.io.clock25 := io.clock25
+  //DM.io.clock25 := io.clock25
 
   //debug output
-  //io.reg := registerFile.io.registers
+  io.reg := registerFile.io.registers
 
   //stop on ecall
   val stop = RegInit(false.B)
-  //io.stop := stop
+  io.stop := stop
   when(deExInstReg.isEnv){
     // for sim
     stop := true.B

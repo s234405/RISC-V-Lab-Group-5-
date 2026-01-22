@@ -61,8 +61,6 @@ class Decode extends Module {
     is(load.U) {  // I
       io.decodedInstr.fmt := I.id.U
       io.decodedInstr.isLoad := true.B
-      //printf("load op1 data: %d\n", io.decodedInstr.op1)
-      //printf("load rs1 sel: %d\n", io.decodedInstr.rs1)
     }
     is(store.U) { // S
       io.decodedInstr.fmt := S.id.U

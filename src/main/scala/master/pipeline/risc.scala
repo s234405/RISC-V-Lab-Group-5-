@@ -11,7 +11,7 @@ import java.io.PrintWriter
 import chisel3.util.experimental.{loadMemoryFromFile, loadMemoryFromFileInline}
 import master.Opcode._
 import master.FMT._
-import master.decInstr
+import master.{VGABundle, decInstr}
 import master.Fn3Values._
 import master.AluEnum._
 import master.BranchFn3._
@@ -44,15 +44,19 @@ object risc extends App {
 
 class risc(code: Array[Int],name: String) extends Module {
   val io = IO(new Bundle {
-    //val reg = Output(Vec(32, UInt(32.W)))
     val LED = Output(UInt(16.W))
-    //val stop = Output(Bool())
     val uart = UartPins()
+    val sevenSeg = Output(UInt(12.W))
+    val VGABundle = new VGABundle
+    //val clock25 = Input(Clock())
+    //for test
+    val stop = Output(Bool())
+    val reg = Output(Vec(32, UInt(32.W)))
   })
-  //create hex file for mem init
-  val pw = new PrintWriter("hexFiles/" + name + ".hex")
-  code.foreach(inst => pw.println(f"$inst%08x"))
-  pw.close()
+  //create hex file for mem init (not used)
+  //val pw = new PrintWriter("hexFiles/" + name + ".hex")
+  //code.foreach(inst => pw.println(f"$inst%08x"))
+  //pw.close()
 
   //init modules
   val instFetch = Module(new instructionFetch(code, name))
@@ -87,7 +91,6 @@ class risc(code: Array[Int],name: String) extends Module {
 
   DM.io.wrAddr := decodedInst.op1 + decodedInst.imm
   DM.io.rdAddr := decodedInst.op1 + decodedInst.imm
-  // DM.io.wrMask := "b1111".U
   DM.io.wrData := decodedInst.op2
 
   //instruction mem write
@@ -160,12 +163,19 @@ class risc(code: Array[Int],name: String) extends Module {
   //Uart
   DM.io.uart <> io.uart
 
+  //sevenSegDisplay output
+  io.sevenSeg := DM.io.sevenSeg
+
+  //VGA
+  io.VGABundle := DM.io.VGABundle
+  //DM.io.clock25 := io.clock25
+
   //debug output
-  //io.reg := registerFile.scala.io.registers
+  io.reg := registerFile.io.registers
 
   //stop on ecall
   val stop = RegInit(false.B)
-  //io.stop := stop
+  io.stop := stop
   when(deExInstReg.isEnv){
     // for sim
     stop := true.B

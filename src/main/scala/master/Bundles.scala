@@ -28,3 +28,11 @@ class decInstr extends Bundle {
   val fn3 = UInt(3.W)
   val aluControl = UInt(4.W)
 }
+
+class VGABundle extends Bundle{
+  val red   = Output(UInt(4.W))
+  val green = Output(UInt(4.W))
+  val blue  = Output(UInt(4.W))
+  val hsync = Output(Bool())
+  val vsync = Output(Bool())
+}

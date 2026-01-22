@@ -4,12 +4,14 @@ import chisel3.util._
 import lib.peripherals.MemoryMappedUart.UartPins
 import lib.peripherals.{MemoryMappedUart, StringStreamer}
 import lib.peripherals.MemoryMappedLeds
+import lib.peripherals.MemoryMappedSevenSegDisplay
+import lib.peripherals.MemoryMappedVGA
 
 import java.io.PrintWriter
 import chisel3.util.experimental.{loadMemoryFromFile, loadMemoryFromFileInline}
 import master.Opcode._
 import master.FMT._
-import master.decInstr
+import master.{VGABundle, decInstr}
 import master.Fn3Values._
 import master.AluEnum._
 import master.BranchFn3._
@@ -32,6 +34,9 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
     val done = Output(Bool())
     val LED = Output(UInt(32.W))
     val uart = UartPins()
+    val sevenSeg = Output(UInt(12.W))
+    val VGABundle = new VGABundle
+    //val clock25 = Input(Clock())
   })
   val size =   4096 //1048576
   val index = log2Up(size/4)
@@ -45,7 +50,7 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
 
   //remove for synthesis vvvv
   // load instruction to Data memory, only for test
-  /*
+
   val depth     = size / 4                      // number of 32-bit words
   val indexBits = log2Up(depth)
 
@@ -76,12 +81,12 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
       initDone := true.B
     }
   }
-  */
+
   //Remove ^^^^
 
 
   //remove for test vvv
-  io.done := true.B
+  //io.done := true.B
 
 
   val rdVec = mem.read(io.rdAddr(index+addrOffset, addrOffset))
@@ -171,6 +176,30 @@ class DataMemory(preload: Array[Int], name:String) extends Module {
     io.rdData := mmUart.io.port.rdData
   }
 
+  //sevenSegDisplay
+  val sevenSeg = Module(new MemoryMappedSevenSegDisplay)
+  sevenSeg.io.port.write := false.B
+  sevenSeg.io.port.wrData := 0.U
+  sevenSeg.io.port.addr := 0.U
+  sevenSeg.io.port.read := 0.U
+  io.sevenSeg := sevenSeg.io.port.rdData
+  when(io.wrAddr === (size + 16).U){
+    sevenSeg.io.port.write := io.wrEna
+    sevenSeg.io.port.wrData := io.wrData(11,0)
+  }
+
+  //vga
+  val VGA = Module(new MemoryMappedVGA)
+  //VGA.io.clock25 := io.clock25
+  VGA.io.port.write := false.B
+  VGA.io.port.wrData := 0.U
+  VGA.io.port.addr := 0.U
+  VGA.io.port.read := 0.U
+  io.VGABundle := VGA.io.VGABundle
+  when(io.wrAddr === (size + 20).U){
+    VGA.io.port.write := io.wrEna
+    VGA.io.port.wrData := io.wrData(11,0)
+  }
 }
 
 

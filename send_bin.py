@@ -5,7 +5,7 @@ import os
 
 port = "COM3"
 baud = 9200
-filename = "serial_echo.bin"
+filename = "VGA.bin"
 ser = serial.Serial(port, baudrate=baud, timeout=1)
 print(f"Opened {port} at {baud} baud")
 time.sleep(0.1)

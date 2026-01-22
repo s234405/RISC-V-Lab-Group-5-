@@ -19,10 +19,10 @@ class instructionMem(code: Array[Int], name:String) extends Module {
 
 
   val depth = code.length
-  val memROM = SyncReadMem(depth, UInt(32.W))
+  //val memROM = SyncReadMem(depth, UInt(32.W))
 
-  // Initialize memory from file
-  loadMemoryFromFileInline(memROM, "hexFiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
+  // Initialize memory from file(not used)
+  //loadMemoryFromFileInline(memROM, "hexFiles/" + name + ".hex", firrtl.annotations.MemoryLoadFileType.Hex)
 
   //io.inst := memROM(io.address(31,2))
   val addrReg = Reg(UInt(32.W))
@@ -33,7 +33,7 @@ class instructionMem(code: Array[Int], name:String) extends Module {
   io.inst := instructions(addrReg(31, 2))
   //printf("instruction: %x\n", io.inst)
 
-  //new mem
+  //new mem (changed copy of data memory module)
   val select = WireInit(0.U(4.W))
 
   val size = 4096

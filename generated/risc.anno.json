@@ -1,0 +1,22 @@
+[
+  {
+    "class":"firrtl.transforms.DedupedResult",
+    "original":"~risc|Queue",
+    "duplicate":"~risc|risc/DM:DataMemory/mmUart:MemoryMappedUart/txBuffer:Queue",
+    "index":0.5
+  },
+  {
+    "class":"firrtl.transforms.DedupedResult",
+    "original":"~risc|Queue_1",
+    "duplicate":"~risc|risc/DM:DataMemory/mmUart:MemoryMappedUart/rxBuffer:Queue",
+    "index":0.5555555555555556
+  },
+  {
+    "class":"firrtl.EmitCircuitAnnotation",
+    "emitter":"firrtl.VerilogEmitter"
+  },
+  {
+    "class":"firrtl.transforms.BlackBoxTargetDirAnno",
+    "targetDir":"generated"
+  }
+]
